@@ -165,6 +165,11 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
     }
 
     private void handleDeviceBonded() {
+        if (bondingDevice == null){
+            AndroidUtils.toast(DiscoveryActivity.this, "Cannot handle device bond. Device not found.", Toast.LENGTH_SHORT);
+            return;
+        }
+
         AndroidUtils.toast(DiscoveryActivity.this,"Bound to" + bondingDevice.getName(), Toast.LENGTH_SHORT);
         connectAndFinish(bondingDevice);
     }

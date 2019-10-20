@@ -62,6 +62,10 @@ public class MiBandDevice implements Parcelable {
         return mState == State.CONNECTING;
     }
 
+    public boolean isConnected() {
+        return mState.ordinal() >= State.CONNECTED.ordinal();
+    }
+
     public boolean isInitializing() {
         return mState == State.INITIALIZING;
     }

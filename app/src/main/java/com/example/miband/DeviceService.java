@@ -8,10 +8,12 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 public class DeviceService extends Service {
-    String PREFIX = "com.example.miband";
+    private boolean mStarted;
 
-    String ACTION_START = PREFIX + ".action.start";
-    String ACTION_CONNECT = PREFIX + ".action.connect";
+    final String PREFIX = "com.example.miband";
+
+    final String ACTION_START = PREFIX + ".action.start";
+    final String ACTION_CONNECT = PREFIX + ".action.connect";
     String ACTION_NOTIFICATION = PREFIX + ".action.notification";
     String ACTION_DELETE_NOTIFICATION = PREFIX + ".action.delete_notification";
     String ACTION_CALLSTATE = PREFIX + ".action.callstate";
@@ -119,9 +121,6 @@ public class DeviceService extends Service {
         return null;
     }
 
-/*
-TODO implement service methods...
-
     @Override
     public synchronized int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) {
@@ -142,20 +141,70 @@ TODO implement service methods...
         if (!action.equals(ACTION_START) && !action.equals(ACTION_CONNECT)) {
             if (!mStarted) {
                 // using the service before issuing ACTION_START
-                LOG.info("Must start service with " + ACTION_START + " or " + ACTION_CONNECT + " before using it: " + action);
+                Log.d(MainActivity.TAG, "Must start service with " + ACTION_START + " or " + ACTION_CONNECT + " before using it: " + action);
                 return START_NOT_STICKY;
-            }
-
-            if (mDeviceSupport == null || (!isInitialized() && !mDeviceSupport.useAutoConnect())) {
-                // trying to send notification without valid Bluetooth connection
-                if (mGBDevice != null) {
-                    // at least send back the current device state
-                    mGBDevice.sendDeviceUpdateIntent(this);
-                }
-                return START_STICKY;
             }
         }
 
+        switch (action) {
+            case ACTION_START:
+                start();
+                break;
+            case ACTION_CONNECT:
+                start(); // ensure started
+                MiBandDevice device = intent.getParcelableExtra(MiBandDevice.EXTRA_DEVICE);
+                String btDeviceAddress = device.getAddress();
+
+                boolean autoReconnect = true; //TODO Should we use it?
+/*
+                if (device != null && !device.isConnecting() && !device.isConnected()) {
+                    setDeviceSupport(null);
+                    try {
+                        MiBandSupport miBandSupport = new MiBandSupport(device);
+                        if (miBandSupport != null) {
+                            setDeviceSupport(miBandSupport);
+                            if (firstTime) {
+                                miBandSupport.connectFirstTime();
+                            } else {
+                                miBandSupport.setAutoReconnect(autoReconnect);
+                                miBandSupport.connect();
+                            }
+                        } else {
+                            GB.toast(this, getString(R.string.cannot_connect, "Can't create device support"), Toast.LENGTH_SHORT, GB.ERROR);
+                        }
+                    } catch (Exception e) {
+                        GB.toast(this, getString(R.string.cannot_connect, e.getMessage()), Toast.LENGTH_SHORT, GB.ERROR, e);
+                        setDeviceSupport(null);
+                    }
+                } else if (mGBDevice != null) {
+                    // send an update at least
+                    mGBDevice.sendDeviceUpdateIntent(this);
+                }*/
+                break;
+            default:
+                Log.d(MainActivity.TAG, "Unable to recognize action: " + action);
+/*
+                if (mDeviceSupport == null || mGBDevice == null) {
+                    LOG.warn("device support:" + mDeviceSupport + ", device: " + mGBDevice + ", aborting");
+                } else {
+                    handleAction(intent, action, prefs);
+                }*/
+                break;
+        }
+        return START_STICKY;
     }
-    */
+
+    private void start() {
+        if (!mStarted) {
+            // TODO startForeground...
+            //
+            // startForeground(1, GB.createNotification(getString(R.string.gadgetbridge_running), this));
+            mStarted = true;
+        }
+    }
+
+
+    public boolean isStarted() {
+        return mStarted;
+    }
 }

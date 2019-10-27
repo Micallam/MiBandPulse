@@ -1,14 +1,20 @@
 package com.example.miband;
 
 import android.app.Service;
+import android.bluetooth.BluetoothGattCallback;
 import android.content.Intent;
+import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 
 public class DeviceService extends Service {
     private boolean mStarted;
+    public MiBandSupport mMiBandSupport;
+    public MiBandDevice mDevice;
 
     final String PREFIX = "com.example.miband";
 
@@ -121,6 +127,7 @@ public class DeviceService extends Service {
         return null;
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     public synchronized int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) {
@@ -156,11 +163,11 @@ public class DeviceService extends Service {
                 String btDeviceAddress = device.getAddress();
 
                 boolean autoReconnect = true; //TODO Should we use it?
-/*
+
                 if (device != null && !device.isConnecting() && !device.isConnected()) {
                     setDeviceSupport(null);
                     try {
-                        MiBandSupport miBandSupport = new MiBandSupport(device);
+                        MiBandSupport miBandSupport = new MiBandSupport(device, this, new GattCallback());
                         if (miBandSupport != null) {
                             setDeviceSupport(miBandSupport);
                             if (firstTime) {
@@ -170,22 +177,22 @@ public class DeviceService extends Service {
                                 miBandSupport.connect();
                             }
                         } else {
-                            GB.toast(this, getString(R.string.cannot_connect, "Can't create device support"), Toast.LENGTH_SHORT, GB.ERROR);
+                            AndroidUtils.toast(this, "Cannot connect: Can't create device support", Toast.LENGTH_SHORT);
                         }
                     } catch (Exception e) {
-                        GB.toast(this, getString(R.string.cannot_connect, e.getMessage()), Toast.LENGTH_SHORT, GB.ERROR, e);
+                        AndroidUtils.toast(this, "Cannot connect:" + e.getMessage(), Toast.LENGTH_SHORT);
                         setDeviceSupport(null);
                     }
-                } else if (mGBDevice != null) {
+                } else if (device != null) {
                     // send an update at least
-                    mGBDevice.sendDeviceUpdateIntent(this);
-                }*/
+                    device.sendDeviceUpdateIntent(this);
+                }
                 break;
             default:
                 Log.d(MainActivity.TAG, "Unable to recognize action: " + action);
 /*
                 if (mDeviceSupport == null || mGBDevice == null) {
-                    LOG.warn("device support:" + mDeviceSupport + ", device: " + mGBDevice + ", aborting");
+                    Log.d(MainActivity.TAG, "device support:" + mDeviceSupport + ", device: " + mGBDevice + ", aborting");
                 } else {
                     handleAction(intent, action, prefs);
                 }*/
@@ -203,6 +210,15 @@ public class DeviceService extends Service {
         }
     }
 
+    private void setDeviceSupport(@Nullable MiBandSupport deviceSupport) {
+        if (deviceSupport != mMiBandSupport && mMiBandSupport != null) {
+            mMiBandSupport.dispose();
+            mMiBandSupport = null;
+            mDevice = null;
+        }
+        mMiBandSupport = deviceSupport;
+        mDevice = mMiBandSupport != null ? mMiBandSupport.getDevice() : null;
+    }
 
     public boolean isStarted() {
         return mStarted;

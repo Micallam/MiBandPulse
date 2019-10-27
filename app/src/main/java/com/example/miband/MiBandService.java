@@ -1,5 +1,6 @@
 package com.example.miband;
 
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 
@@ -11,7 +12,7 @@ import java.util.UUID;
 
 public class MiBandService extends DeviceService{
     protected static Context mContext;
-    public static MiBandService mService;
+    private final Class<? extends Service> mService;
 
     public static final String BASE_UUID = "0000%s-0000-1000-8000-00805f9b34fb"; //this is common for all BTLE devices.
 
@@ -253,6 +254,7 @@ public class MiBandService extends DeviceService{
 
     public MiBandService(Context context) {
         mContext = context;
+        mService = DeviceService.class;
     }
 
     public static String lookup(UUID uuid, String fallback) {
@@ -271,7 +273,7 @@ public class MiBandService extends DeviceService{
     }
 
     protected Intent createIntent() {
-        return new Intent(mContext, MiBandDevice.class);
+        return new Intent(mContext, mService);
     }
 
     protected void invokeService(Intent intent) {
@@ -281,12 +283,5 @@ public class MiBandService extends DeviceService{
     public void disconnect() {
         Intent intent = createIntent().setAction(ACTION_DISCONNECT);
         invokeService(intent);
-    }
-
-    public static MiBandService getService(){
-        if (mService == null){
-            mService = new MiBandService(mContext);
-        }
-        return mService;
     }
 }

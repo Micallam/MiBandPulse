@@ -3,12 +3,15 @@ package com.example.miband;
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.le.ScanFilter;
+import android.content.Context;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Parcel;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -62,6 +65,10 @@ public class MiBandDevice implements Parcelable {
         return mState == State.CONNECTING;
     }
 
+    public boolean isConnected() {
+        return mState.ordinal() >= State.CONNECTED.ordinal();
+    }
+
     public boolean isInitializing() {
         return mState == State.INITIALIZING;
     }
@@ -109,4 +116,20 @@ public class MiBandDevice implements Parcelable {
             return new MiBandDevice[size];
         }
     };
+
+
+    public void sendDeviceUpdateIntent(Context context) {
+        Intent deviceUpdateIntent = new Intent(ACTION_DEVICE_CHANGED);
+        deviceUpdateIntent.putExtra(EXTRA_DEVICE, this);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(deviceUpdateIntent);
+    }
+
+
+    public void setState(State state) {
+        mState = state;
+    }
+
+    public State getState(){
+        return mState;
+    }
 }

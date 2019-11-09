@@ -15,9 +15,12 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
+import com.example.miband.Activities.DiscoveryActivity;
+import com.example.miband.Device.MiBandService;
+
 public class MainActivity extends AppCompatActivity {
 
-    public static final String TAG = "MiBand";
+    public static final String TAG = "MiBand: MainActivity";
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
 
     private static MainActivity context;

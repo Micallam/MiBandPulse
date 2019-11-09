@@ -1,4 +1,4 @@
-package com.example.miband;
+package com.example.miband.Bluetooth.Gatt;
 
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.util.Log;
@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public class GattCharacteristic {
+    public static String TAG = "MiBand: GattCharacteristic";
 
     //part of the generic BLE specs see https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicsHome.aspx
     //the list is complete as of 2015-09-28
@@ -210,7 +211,7 @@ public class GattCharacteristic {
                 }
             }
         } catch (Exception ex) {
-            Log.w(GattCharacteristic.class.getName(), "Error reading UUID fields by reflection: " + ex.getMessage(), ex);
+            Log.d(GattCharacteristic.class.getName(), "Error reading UUID fields by reflection: " + ex.getMessage(), ex);
         }
         return map;
     }

@@ -1,4 +1,4 @@
-package com.example.miband;
+package com.example.miband.Device;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -6,7 +6,6 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
@@ -18,9 +17,16 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
+import com.example.miband.Bluetooth.Actions.BtLEAction;
+import com.example.miband.Bluetooth.Gatt.GattCallback;
+import com.example.miband.Bluetooth.Transaction;
+
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 public class MiBandSupport {
+    public static String TAG = "MiBand: MiBandSupport";
+
     MiBandDevice mDevice;
     boolean mAutoReconnect;
 
@@ -28,16 +34,120 @@ public class MiBandSupport {
     private final BluetoothAdapter mBluetoothAdapter;
     private final Context mContext;
     private BluetoothGatt mBluetoothGatt;
-    private BluetoothGattServer mBluetoothGattServer;
     private final InternalGattCallback internalGattCallback;
+    private GattCallback mGattCallback;
+
+    private BluetoothGattCharacteristic mWaitCharacteristic;
+
+    private volatile boolean mDisposed;
+    private volatile boolean mCrashed;
+    private volatile boolean mAbortTransaction;
+
+    private CountDownLatch mConnectionLatch;
+    private CountDownLatch mWaitForActionResultLatch;
+
+    Transaction mTransaction;
 
 
-    public MiBandSupport(MiBandDevice device, Context context, BluetoothGattCallback bluetoothGattCallback){
+
+    private Thread dispatchThread = new Thread("Gadgetbridge GATT Dispatcher") {
+
+        @Override
+        public void run() {
+            Log.d(MiBandSupport.TAG, "Queue Dispatch Thread started.");
+
+            while (!mDisposed && !mCrashed) {
+                try {
+                    Transaction qTransaction = mTransaction;
+
+                    if (!mDevice.isConnected()) {
+                        Log.d(MiBandSupport.TAG, "not connected, waiting for connection...");
+                        // TODO: request connection and initialization from the outside and wait until finished
+                        internalGattCallback.reset();
+
+                        // wait until the connection succeeds before running the actions
+                        // Note that no automatic connection is performed. This has to be triggered
+                        // on the outside typically by the DeviceSupport. The reason is that
+                        // devices have different kinds of initializations and this class has no
+                        // idea about them.
+                        mConnectionLatch = new CountDownLatch(1);
+                        mConnectionLatch.await();
+                        mConnectionLatch = null;
+                    }
+
+                    if(qTransaction instanceof Transaction) {
+                        Transaction transaction = (Transaction)qTransaction;
+                        internalGattCallback.setTransactionGattCallback(transaction.getGattCallback());
+                        mAbortTransaction = false;
+                        // Run all actions of the transaction until one doesn't succeed
+                        for (BtLEAction action : transaction.getActions()) {
+                            if (mAbortTransaction) { // got disconnected
+                                Log.d(MiBandSupport.TAG, "Aborting running transaction");
+                                break;
+                            }
+                            mWaitCharacteristic = action.getCharacteristic();
+
+                            if (mWaitCharacteristic != null){
+
+                                mWaitForActionResultLatch = new CountDownLatch(1);
+
+                                Log.d(MiBandSupport.TAG, "About to run action: " + action);
+
+                                if (action.run(mBluetoothGatt)) {
+                                    // check again, maybe due to some condition, action did not need to write, so we can't wait
+                                    boolean waitForResult = action.expectsResult();
+                                    if (waitForResult) {
+                                        mWaitForActionResultLatch.await();
+                                        mWaitForActionResultLatch = null;
+                                        if (mAbortTransaction) {
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    Log.d(MiBandSupport.TAG, "Action returned false: " + action);
+                                    break; // abort the transaction
+                                }
+                            }
+                        }
+                    }
+                } catch (InterruptedException ignored) {
+                    mConnectionLatch = null;
+                    Log.d(MiBandSupport.TAG, "Thread interrupted");
+                } catch (Throwable ex) {
+                    Log.d(MiBandSupport.TAG, "Queue Dispatch Thread died: " + ex.getMessage(), ex);
+                    mCrashed = true;
+                    mConnectionLatch = null;
+                } finally {
+                    mWaitForActionResultLatch = null;
+                    mWaitCharacteristic = null;
+                }
+            }
+            Log.d(MiBandSupport.TAG, "Queue Dispatch Thread terminated.");
+        }
+    };
+
+    public void runDispatchThread(Transaction transaction){
+        mTransaction = transaction;
+
+        dispatchThread.start();
+    //TODO: Back in here
+     /*   try {
+            dispatchThread.join();
+            dispose();
+        }
+        catch (InterruptedException ignored) {
+            Log.d(MiBandSupport.TAG, "Disposed");
+        }*/
+    }
+
+    public MiBandSupport(MiBandDevice device, Context context, BluetoothGattCallback bluetoothGattCallback, GattCallback gattCallback){
         mDevice = device;
         mContext = context;
         mAutoReconnect = true;
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         internalGattCallback = new InternalGattCallback(bluetoothGattCallback);
+
+        mGattCallback = gattCallback;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -51,31 +161,41 @@ public class MiBandSupport {
     }
 
     public void disconnect(){
-
+        synchronized (mGattMonitor) {
+            Log.d(MiBandSupport.TAG, "disconnect()");
+            BluetoothGatt gatt = mBluetoothGatt;
+            if (gatt != null) {
+                mBluetoothGatt = null;
+                Log.d(MiBandSupport.TAG, "Disconnecting BtLEQueue from GATT device");
+                gatt.disconnect();
+                gatt.close();
+                setDeviceConnectionState(MiBandDevice.State.NOT_CONNECTED);
+            }
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     public boolean connect(){
         if (mDevice.isConnected()) {
-            Log.d(MainActivity.TAG, "Ingoring connect() because already connected.");
+            Log.d(MiBandSupport.TAG, "Ingoring connect() because already connected.");
             return false;
         }
         synchronized (mGattMonitor) {
             if (mBluetoothGatt != null) {
                 // Tribal knowledge says you're better off not reusing existing BluetoothGatt connections,
                 // so create a new one.
-                Log.d(MainActivity.TAG, "connect() requested -- disconnecting previous connection: " + mDevice.getName());
+                Log.d(MiBandSupport.TAG, "connect() requested -- disconnecting previous connection: " + mDevice.getName());
                 disconnect();
             }
         }
-        Log.d(MainActivity.TAG, "Attempting to connect to " + mDevice.getName());
+        Log.d(MiBandSupport.TAG, "Attempting to connect to " + mDevice.getName());
         mBluetoothAdapter.cancelDiscovery();
         BluetoothDevice remoteDevice = mBluetoothAdapter.getRemoteDevice(mDevice.getAddress());
 
         synchronized (mGattMonitor) {
             // connectGatt with true doesn't really work ;( too often connection problems
 
-            mBluetoothGatt = remoteDevice.connectGatt(mContext, false, internalGattCallback, BluetoothDevice.TRANSPORT_LE);
+                mBluetoothGatt = remoteDevice.connectGatt(mContext, false, internalGattCallback, BluetoothDevice.TRANSPORT_LE);
 
         }
         boolean result = mBluetoothGatt != null;
@@ -87,14 +207,17 @@ public class MiBandSupport {
     }
 
     public void setDeviceConnectionState(MiBandDevice.State newState){
-        Log.d(MainActivity.TAG, "new device connection state: " + newState);
+        Log.d(MiBandSupport.TAG, "new device connection state: " + newState);
 
         mDevice.setState(newState);
         mDevice.sendDeviceUpdateIntent(mContext);
     }
 
-    public boolean dispose(){
-        return true;
+    public void dispose(){
+        mDisposed = true;
+        disconnect();
+        dispatchThread.interrupt();
+        dispatchThread = null;
     }
 
     public MiBandDevice getDevice(){
@@ -107,14 +230,14 @@ public class MiBandSupport {
 
     private boolean checkCorrectGattInstance(BluetoothGatt gatt, String where) {
         if (gatt != mBluetoothGatt && mBluetoothGatt != null) {
-            Log.d(MainActivity.TAG, "Ignoring event from wrong BluetoothGatt instance: " + where + "; " + gatt);
+            Log.d(MiBandSupport.TAG, "Ignoring event from wrong BluetoothGatt instance: " + where + "; " + gatt);
             return false;
         }
         return true;
     }
 
     private void handleDisconnected(int status) {
-        Log.d(MainActivity.TAG, "handleDisconnected: " + status);
+        Log.d(MiBandSupport.TAG, "handleDisconnected: " + status);
         internalGattCallback.reset();
         //mAbortTransaction = true;
         //mAbortServerTransaction = true;
@@ -124,7 +247,8 @@ public class MiBandSupport {
         setDeviceConnectionState(MiBandDevice.State.NOT_CONNECTED);
 
         if (mBluetoothGatt != null) {
-            if (!wasInitialized || !maybeReconnect()) {
+            //if (!wasInitialized || !maybeReconnect()) {
+            if (!maybeReconnect()) {
                 disconnect(); // ensure that we start over cleanly next time
             }
         }
@@ -133,14 +257,19 @@ public class MiBandSupport {
 
     private boolean maybeReconnect() {
         if (mAutoReconnect && mBluetoothGatt != null) {
-            Log.d(MainActivity.TAG, "Enabling automatic ble reconnect...");
+            Log.d(MiBandSupport.TAG, "Enabling automatic ble reconnect...");
             boolean result = mBluetoothGatt.connect();
             if (result) {
+                mCrashed = false;
                 setDeviceConnectionState(MiBandDevice.State.WAITING_FOR_RECONNECT);
             }
             return result;
         }
         return false;
+    }
+
+    public Context getContext(){
+        return mContext;
     }
 
     private final class InternalGattCallback extends BluetoothGattCallback {
@@ -158,15 +287,15 @@ public class MiBandSupport {
         }
 
         private BluetoothGattCallback getCallbackToUse() {
-            if (mTransactionGattCallback != null) {
-                return mTransactionGattCallback;
+            if (mGattCallback != null) {
+                return mGattCallback;
             }
             return mExternalGattCallback;
         }
 
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            Log.d(MainActivity.TAG, "connection state change, newState: " + newState + getStatusString(status));
+            Log.d(MiBandSupport.TAG, "connection state change, newState: " + newState + getStatusString(status));
 
             synchronized (mGattMonitor) {
                 if (mBluetoothGatt == null) {
@@ -179,20 +308,20 @@ public class MiBandSupport {
             }
 
             if (status != BluetoothGatt.GATT_SUCCESS) {
-                Log.d(MainActivity.TAG, "connection state event with error status " + status);
+                Log.d(MiBandSupport.TAG, "connection state event with error status " + status);
             }
 
             switch (newState) {
                 case BluetoothProfile.STATE_CONNECTED:
-                    Log.d(MainActivity.TAG, "Connected to GATT server.");
+                    Log.d(MiBandSupport.TAG, "Connected to GATT server.");
                     setDeviceConnectionState(MiBandDevice.State.CONNECTED);
                     // Attempts to discover services after successful connection.
                     List<BluetoothGattService> cachedServices = gatt.getServices();
                     if (cachedServices != null && cachedServices.size() > 0) {
-                        Log.d(MainActivity.TAG, "Using cached services, skipping discovery");
+                        Log.d(MiBandSupport.TAG, "Using cached services, skipping discovery");
                         onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS);
                     } else {
-                        Log.d(MainActivity.TAG, "Attempting to start service discovery");
+                        Log.d(MiBandSupport.TAG, "Attempting to start service discovery");
                         // discover services in the main thread (appears to fix Samsung connection problems)
                         new Handler(Looper.getMainLooper()).post(new Runnable() {
                             @Override
@@ -205,11 +334,11 @@ public class MiBandSupport {
                     }
                     break;
                 case BluetoothProfile.STATE_DISCONNECTED:
-                    Log.d(MainActivity.TAG, "Disconnected from GATT server.");
+                    Log.d(MiBandSupport.TAG, "Disconnected from GATT server.");
                     handleDisconnected(status);
                     break;
                 case BluetoothProfile.STATE_CONNECTING:
-                    Log.d(MainActivity.TAG, "Connecting to GATT server...");
+                    Log.d(MiBandSupport.TAG, "Connecting to GATT server...");
                     setDeviceConnectionState(MiBandDevice.State.CONNECTING);
                     break;
             }
@@ -217,6 +346,7 @@ public class MiBandSupport {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            Log.d(MiBandSupport.TAG, "On services discovered...");
             if (!checkCorrectGattInstance(gatt, "services discovered: " + getStatusString(status))) {
                 return;
             }
@@ -227,13 +357,13 @@ public class MiBandSupport {
                     getCallbackToUse().onServicesDiscovered(gatt, status);
                 }
             } else {
-                Log.d(MainActivity.TAG, "onServicesDiscovered received: " + status);
+                Log.d(MiBandSupport.TAG, "onServicesDiscovered received: " + status);
             }
         }
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            Log.d(MainActivity.TAG, "characteristic write: " + characteristic.getUuid() + getStatusString(status));
+            Log.d(MiBandSupport.TAG, "characteristic write: " + characteristic.getUuid() + getStatusString(status));
             if (!checkCorrectGattInstance(gatt, "characteristic write")) {
                 return;
             }
@@ -247,7 +377,7 @@ public class MiBandSupport {
         public void onCharacteristicRead(BluetoothGatt gatt,
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
-            Log.d(MainActivity.TAG, "characteristic read: " + characteristic.getUuid() + getStatusString(status));
+            Log.d(MiBandSupport.TAG, "characteristic read: " + characteristic.getUuid() + getStatusString(status));
             if (!checkCorrectGattInstance(gatt, "characteristic read")) {
                 return;
             }
@@ -255,7 +385,7 @@ public class MiBandSupport {
                 try {
                     getCallbackToUse().onCharacteristicRead(gatt, characteristic, status);
                 } catch (Throwable ex) {
-                    Log.d(MainActivity.TAG, "onCharacteristicRead: " + ex.getMessage(), ex);
+                    Log.d(MiBandSupport.TAG, "onCharacteristicRead: " + ex.getMessage(), ex);
                 }
             }
             checkWaitingCharacteristic(characteristic, status);
@@ -263,7 +393,7 @@ public class MiBandSupport {
 
         @Override
         public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            Log.d(MainActivity.TAG, "descriptor read: " + descriptor.getUuid() + getStatusString(status));
+            Log.d(MiBandSupport.TAG, "descriptor read: " + descriptor.getUuid() + getStatusString(status));
             if (!checkCorrectGattInstance(gatt, "descriptor read")) {
                 return;
             }
@@ -271,7 +401,7 @@ public class MiBandSupport {
                 try {
                     getCallbackToUse().onDescriptorRead(gatt, descriptor, status);
                 } catch (Throwable ex) {
-                    Log.d(MainActivity.TAG, "onDescriptorRead: " + ex.getMessage(), ex);
+                    Log.d(MiBandSupport.TAG, "onDescriptorRead: " + ex.getMessage(), ex);
                 }
             }
             checkWaitingCharacteristic(descriptor.getCharacteristic(), status);
@@ -279,7 +409,7 @@ public class MiBandSupport {
 
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            Log.d(MainActivity.TAG, "descriptor write: " + descriptor.getUuid() + getStatusString(status));
+            Log.d(MiBandSupport.TAG, "descriptor write: " + descriptor.getUuid() + getStatusString(status));
             if (!checkCorrectGattInstance(gatt, "descriptor write")) {
                 return;
             }
@@ -287,7 +417,7 @@ public class MiBandSupport {
                 try {
                     getCallbackToUse().onDescriptorWrite(gatt, descriptor, status);
                 } catch (Throwable ex) {
-                    Log.d(MainActivity.TAG, "onDescriptorWrite: " + ex.getMessage(), ex);
+                    Log.d(MiBandSupport.TAG, "onDescriptorWrite: " + ex.getMessage(), ex);
                 }
             }
             checkWaitingCharacteristic(descriptor.getCharacteristic(), status);
@@ -296,7 +426,7 @@ public class MiBandSupport {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
-            Log.d(MainActivity.TAG, "characteristic changed: " + characteristic.getUuid());
+            Log.d(MiBandSupport.TAG, "characteristic changed: " + characteristic.getUuid());
 
             if (!checkCorrectGattInstance(gatt, "characteristic changed")) {
                 return;
@@ -305,16 +435,16 @@ public class MiBandSupport {
                 try {
                     getCallbackToUse().onCharacteristicChanged(gatt, characteristic);
                 } catch (Throwable ex) {
-                    Log.d(MainActivity.TAG, "onCharaceristicChanged: " + ex.getMessage(), ex);
+                    Log.d(MiBandSupport.TAG, "onCharaceristicChanged: " + ex.getMessage(), ex);
                 }
             } else {
-                Log.d(MainActivity.TAG, "No gattcallback registered, ignoring characteristic change");
+                Log.d(MiBandSupport.TAG, "No gattcallback registered, ignoring characteristic change");
             }
         }
 
         @Override
         public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
-            Log.d(MainActivity.TAG, "remote rssi: " + rssi + getStatusString(status));
+            Log.d(MiBandSupport.TAG, "remote rssi: " + rssi + getStatusString(status));
             if (!checkCorrectGattInstance(gatt, "remote rssi")) {
                 return;
             }
@@ -322,7 +452,7 @@ public class MiBandSupport {
                 try {
                     getCallbackToUse().onReadRemoteRssi(gatt, rssi, status);
                 } catch (Throwable ex) {
-                    Log.d(MainActivity.TAG, "onReadRemoteRssi: " + ex.getMessage(), ex);
+                    Log.d(MiBandSupport.TAG, "onReadRemoteRssi: " + ex.getMessage(), ex);
                 }
             }
         }
@@ -330,19 +460,19 @@ public class MiBandSupport {
         private void checkWaitingCharacteristic(BluetoothGattCharacteristic characteristic, int status) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 if (characteristic != null) {
-                    Log.d(MainActivity.TAG, "failed btle action, aborting transaction: " + characteristic.getUuid() + getStatusString(status));
+                    Log.d(MiBandSupport.TAG, "failed btle action, aborting transaction: " + characteristic.getUuid() + getStatusString(status));
                 }
-              //  mAbortTransaction = true;
+                mAbortTransaction = true;
             }
-         /*   if (characteristic != null && BtLEQueue.this.mWaitCharacteristic != null && characteristic.getUuid().equals(BtLEQueue.this.mWaitCharacteristic.getUuid())) {
+            if (characteristic != null && mWaitCharacteristic != null && characteristic.getUuid().equals(mWaitCharacteristic.getUuid())) {
                 if (mWaitForActionResultLatch != null) {
                     mWaitForActionResultLatch.countDown();
                 }
             } else {
-                if (BtLEQueue.this.mWaitCharacteristic != null) {
-                    Log.d(MainActivity.TAG, "checkWaitingCharacteristic: mismatched characteristic received: " + ((characteristic != null && characteristic.getUuid() != null) ? characteristic.getUuid().toString() : "(null)"));
+                if (mWaitCharacteristic != null) {
+                    Log.d(MiBandSupport.TAG, "checkWaitingCharacteristic: mismatched characteristic received: " + ((characteristic != null && characteristic.getUuid() != null) ? characteristic.getUuid().toString() : "(null)"));
                 }
-            }*/
+            }
         }
 
         private String getStatusString(int status) {
@@ -350,7 +480,7 @@ public class MiBandSupport {
         }
 
         public void reset() {
-            Log.d(MainActivity.TAG, "internal gatt callback set to null");
+            Log.d(MiBandSupport.TAG, "internal gatt callback set to null");
 
             mTransactionGattCallback = null;
         }

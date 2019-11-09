@@ -1,7 +1,6 @@
-package com.example.miband;
+package com.example.miband.Device;
 
 import android.app.Service;
-import android.bluetooth.BluetoothGattCallback;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
@@ -11,7 +10,12 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
+import com.example.miband.Bluetooth.Gatt.GattCallback;
+import com.example.miband.Utils.AndroidUtils;
+
 public class DeviceService extends Service {
+    public static String TAG = "MiBand: DeviceService";
+
     private boolean mStarted;
     public MiBandSupport mMiBandSupport;
     public MiBandDevice mDevice;
@@ -131,7 +135,7 @@ public class DeviceService extends Service {
     @Override
     public synchronized int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) {
-            Log.d(MainActivity.TAG, "no intent");
+            Log.d(DeviceService.TAG, "no intent");
             return START_NOT_STICKY;
         }
 
@@ -139,16 +143,16 @@ public class DeviceService extends Service {
         boolean firstTime = intent.getBooleanExtra(EXTRA_CONNECT_FIRST_TIME, false);
 
         if (action == null) {
-            Log.d(MainActivity.TAG, "no action");
+            Log.d(DeviceService.TAG, "no action");
             return START_NOT_STICKY;
         }
 
-        Log.d(MainActivity.TAG, "Service startcommand: " + action);
+        Log.d(DeviceService.TAG, "Service startcommand: " + action);
 
         if (!action.equals(ACTION_START) && !action.equals(ACTION_CONNECT)) {
             if (!mStarted) {
                 // using the service before issuing ACTION_START
-                Log.d(MainActivity.TAG, "Must start service with " + ACTION_START + " or " + ACTION_CONNECT + " before using it: " + action);
+                Log.d(DeviceService.TAG, "Must start service with " + ACTION_START + " or " + ACTION_CONNECT + " before using it: " + action);
                 return START_NOT_STICKY;
             }
         }
@@ -167,7 +171,10 @@ public class DeviceService extends Service {
                 if (device != null && !device.isConnecting() && !device.isConnected()) {
                     setDeviceSupport(null);
                     try {
-                        MiBandSupport miBandSupport = new MiBandSupport(device, this, new GattCallback());
+                        GattCallback gattCallback = new GattCallback(device);
+                        MiBandSupport miBandSupport = new MiBandSupport(device, this, gattCallback, gattCallback);
+                        gattCallback.setSupport(miBandSupport);
+
                         if (miBandSupport != null) {
                             setDeviceSupport(miBandSupport);
                             if (firstTime) {
@@ -189,10 +196,10 @@ public class DeviceService extends Service {
                 }
                 break;
             default:
-                Log.d(MainActivity.TAG, "Unable to recognize action: " + action);
+                Log.d(DeviceService.TAG, "Unable to recognize action: " + action);
 /*
                 if (mDeviceSupport == null || mGBDevice == null) {
-                    Log.d(MainActivity.TAG, "device support:" + mDeviceSupport + ", device: " + mGBDevice + ", aborting");
+                    Log.d(DeviceService.TAG, "device support:" + mDeviceSupport + ", device: " + mGBDevice + ", aborting");
                 } else {
                     handleAction(intent, action, prefs);
                 }*/

@@ -1,4 +1,4 @@
-package com.example.miband;
+package com.example.miband.Device;
 
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothDevice;

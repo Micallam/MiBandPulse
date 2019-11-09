@@ -1,4 +1,4 @@
-package com.example.miband;
+package com.example.miband.Utils;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -10,6 +10,8 @@ import android.os.ParcelUuid;
 import android.os.Parcelable;
 import android.widget.Toast;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
+import com.example.miband.MainActivity;
 
 public class AndroidUtils {
     public static ParcelUuid[] toParcelUuids(Parcelable[] uuids) {

@@ -1,10 +1,13 @@
-package com.example.miband;
+package com.example.miband.Device;
 
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 
 import androidx.annotation.Nullable;
+
+import com.example.miband.Bluetooth.Gatt.GattCharacteristic;
+import com.example.miband.Bluetooth.Gatt.GattService;
 
 import java.util.HashMap;
 import java.util.Map;

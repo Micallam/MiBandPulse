@@ -1,4 +1,4 @@
-package com.example.miband;
+package com.example.miband.Bluetooth.Gatt;
 
 import java.util.HashMap;
 import java.util.Map;

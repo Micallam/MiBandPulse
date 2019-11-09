@@ -27,15 +27,15 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".DiscoveryActivity"
+        <activity android:name=".Activities.DiscoveryActivity"
             android:parentActivityName=".MainActivity"
             android:label="Discovery activity"/>
 
-        <activity android:name=".PairingActivity"
-            android:parentActivityName=".DiscoveryActivity"
+        <activity android:name=".Activities.PairingActivity"
+            android:parentActivityName=".Activities.DiscoveryActivity"
             android:label="Pairing activity"/>
 
-        <service android:name=".DeviceService" />
+        <service android:name=".Device.DeviceService" />
     </application>
 
 </manifest>

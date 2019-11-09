@@ -1,4 +1,4 @@
-package com.example.miband;
+package com.example.miband.Activities;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -16,7 +16,14 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.example.miband.Device.MiBandDevice;
+import com.example.miband.Device.MiBandService;
+import com.example.miband.R;
+import com.example.miband.Utils.AndroidUtils;
+
 public class PairingActivity extends AppCompatActivity {
+    public static String TAG = "MiBand: PairingActivity";
+
     private static final int REQ_CODE_USER_SETTINGS = 52;
     private static final String STATE_DEVICE_CANDIDATE = "stateDeviceCandidate";
     private static final long DELAY_AFTER_BONDING = 1000; // 1s
@@ -30,12 +37,12 @@ public class PairingActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             if (MiBandDevice.ACTION_DEVICE_CHANGED.equals(intent.getAction())) {
                 MiBandDevice device = intent.getParcelableExtra(MiBandDevice.EXTRA_DEVICE);
-                Log.d(MainActivity.TAG, "pairing activity: device changed: " + device);
+                Log.d(PairingActivity.TAG, "pairing activity: device changed: " + device.getName() + " " + device.getAddress());
                 if (PairingActivity.this.device.getAddress().equals(device.getAddress())) {
                     if (device.isInitialized()) {
                         pairingFinished(true, PairingActivity.this.device);
                     } else if (device.isConnecting() || device.isInitializing()) {
-                        Log.d(MainActivity.TAG, "still connecting/initializing device...");
+                        Log.d(PairingActivity.TAG, "still connecting/initializing device...");
                     }
                 }
             }
@@ -47,21 +54,21 @@ public class PairingActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(intent.getAction())) {
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                Log.d(MainActivity.TAG, "Bond state changed: " + device + ", state: " + device.getBondState() + ", expected address: " + bondingAddress);
+                Log.d(PairingActivity.TAG, "Bond state changed: " + device + ", state: " + device.getBondState() + ", expected address: " + bondingAddress);
                 if (bondingAddress != null && bondingAddress.equals(device.getAddress())) {
                     int bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE);
                     if (bondState == BluetoothDevice.BOND_BONDED) {
-                        Log.d(MainActivity.TAG, "Bonded with " + device.getAddress());
+                        Log.d(PairingActivity.TAG, "Bonded with " + device.getAddress());
                         bondingAddress = null;
                         attemptToConnect();
                     } else if (bondState == BluetoothDevice.BOND_BONDING) {
-                        Log.d(MainActivity.TAG, "Bonding in progress with " + device.getAddress());
+                        Log.d(PairingActivity.TAG, "Bonding in progress with " + device.getAddress());
                     } else if (bondState == BluetoothDevice.BOND_NONE) {
-                        Log.d(MainActivity.TAG, "Not bonded with " + device.getAddress() + ", attempting to connect anyway.");
+                        Log.d(PairingActivity.TAG, "Not bonded with " + device.getAddress() + ", attempting to connect anyway.");
                         bondingAddress = null;
                         attemptToConnect();
                     } else {
-                        Log.d(MainActivity.TAG, "Unknown bond state for device " + device.getAddress() + ": " + bondState);
+                        Log.d(PairingActivity.TAG, "Unknown bond state for device " + device.getAddress() + ": " + bondState);
                         pairingFinished(false, PairingActivity.this.device);
                     }
                 }
@@ -153,7 +160,7 @@ public class PairingActivity extends AppCompatActivity {
 
     private void startPairing() {
         isPairing = true;
-        message.setText("Pairing with " + device + "…");
+        message.setText("Pairing with " + device.getName() + " " + device.getAddress() + "…");
 
         IntentFilter filter = new IntentFilter(MiBandDevice.ACTION_DEVICE_CHANGED);
         LocalBroadcastManager.getInstance(this).registerReceiver(mPairingReceiver, filter);
@@ -176,7 +183,7 @@ public class PairingActivity extends AppCompatActivity {
     }
 
     private void pairingFinished(boolean pairedSuccessfully, MiBandDevice candidate) {
-        Log.d(MainActivity.TAG, "pairingFinished: " + pairedSuccessfully);
+        Log.d(PairingActivity.TAG, "pairingFinished: " + pairedSuccessfully);
         if (!isPairing) {
             return;
         }

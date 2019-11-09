@@ -1,9 +1,10 @@
 package com.example.miband.Bluetooth;
 
+import android.bluetooth.BluetoothGattCallback;
+
 import androidx.annotation.Nullable;
 
 import com.example.miband.Bluetooth.Actions.BtLEAction;
-import com.example.miband.Bluetooth.Gatt.GattCallback;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,7 +14,7 @@ public class Transaction {
     private final List<BtLEAction> mActions = new ArrayList<>(4);
     private
     @Nullable
-    GattCallback gattCallback;
+    BluetoothGattCallback gattCallback;
 
     private final String mName;
     private final long creationTimestamp = System.currentTimeMillis();
@@ -38,7 +39,7 @@ public class Transaction {
         return mActions.isEmpty();
     }
 
-    public void setGattCallback(@Nullable GattCallback callback) {
+    public void setGattCallback(@Nullable BluetoothGattCallback callback) {
         gattCallback = callback;
     }
 
@@ -47,7 +48,7 @@ public class Transaction {
      */
     public
     @Nullable
-    GattCallback getGattCallback() {
+    BluetoothGattCallback getGattCallback() {
         return gattCallback;
     }
 

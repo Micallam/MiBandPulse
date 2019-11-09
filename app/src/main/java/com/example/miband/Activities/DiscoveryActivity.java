@@ -313,6 +313,9 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         if (isScanning()) {
             stopDiscovery();
         } else {
+            deviceCandidates.clear();
+            cadidateListAdapter.notifyDataSetChanged();
+
             startDiscovery();
         }
     }

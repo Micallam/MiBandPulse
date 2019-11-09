@@ -8,7 +8,6 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.os.Build;
@@ -20,12 +19,10 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import com.example.miband.Bluetooth.Actions.BtLEAction;
-import com.example.miband.Bluetooth.Gatt.GattCallback;
 import com.example.miband.Device.MiBandDevice;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -38,7 +35,6 @@ public class BluetoothQueue {
     private final MiBandDevice mDevice;
     private final BluetoothAdapter mBluetoothAdapter;
     private BluetoothGatt mBluetoothGatt;
-    private BluetoothGattServer mBluetoothGattServer;
 
     private final BlockingQueue<Transaction> mTransactions = new LinkedBlockingQueue<>();
     private volatile boolean mDisposed;
@@ -130,7 +126,7 @@ public class BluetoothQueue {
         }
     };
 
-    public BluetoothQueue(BluetoothAdapter bluetoothAdapter, MiBandDevice device, GattCallback externalGattCallback, Context context) {
+    public BluetoothQueue(BluetoothAdapter bluetoothAdapter, MiBandDevice device, BluetoothGattCallback externalGattCallback, Context context) {
         mBluetoothAdapter = bluetoothAdapter;
         mDevice = device;
         internalGattCallback = new InternalGattCallback(externalGattCallback);
@@ -240,16 +236,10 @@ public class BluetoothQueue {
             BluetoothGatt gatt = mBluetoothGatt;
             if (gatt != null) {
                 mBluetoothGatt = null;
-                Log.d(BluetoothQueue.TAG, "Disconnecting BtLEQueue from GATT device");
+                Log.d(BluetoothQueue.TAG, "Disconnecting BluetoothQueue from GATT device");
                 gatt.disconnect();
                 gatt.close();
                 setDeviceConnectionState(MiBandDevice.State.NOT_CONNECTED);
-            }
-            BluetoothGattServer gattServer = mBluetoothGattServer;
-            if (gattServer != null) {
-                mBluetoothGattServer = null;
-                gattServer.clearServices();
-                gattServer.close();
             }
         }
     }
@@ -285,18 +275,18 @@ public class BluetoothQueue {
     private final class InternalGattCallback extends BluetoothGattCallback {
         private
         @Nullable
-        GattCallback mTransactionGattCallback;
-        private final GattCallback mExternalGattCallback;
+        BluetoothGattCallback mTransactionGattCallback;
+        private final BluetoothGattCallback mExternalGattCallback;
 
-        public InternalGattCallback(GattCallback externalGattCallback) {
+        public InternalGattCallback(BluetoothGattCallback externalGattCallback) {
             mExternalGattCallback = externalGattCallback;
         }
 
-        public void setTransactionGattCallback(@Nullable GattCallback callback) {
+        public void setTransactionGattCallback(@Nullable BluetoothGattCallback callback) {
             mTransactionGattCallback = callback;
         }
 
-        private GattCallback getCallbackToUse() {
+        private BluetoothGattCallback getCallbackToUse() {
             if (mTransactionGattCallback != null) {
                 return mTransactionGattCallback;
             }

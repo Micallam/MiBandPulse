@@ -1,5 +1,6 @@
 package com.example.miband.Bluetooth;
 
+import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.util.Log;
 
@@ -9,7 +10,6 @@ import com.example.miband.Bluetooth.Actions.BtLEAction;
 import com.example.miband.Bluetooth.Actions.NotifyAction;
 import com.example.miband.Bluetooth.Actions.ReadAction;
 import com.example.miband.Bluetooth.Actions.WriteAction;
-import com.example.miband.Bluetooth.Gatt.GattCallback;
 import com.example.miband.Device.MiBandSupport;
 
 public class TransactionBuilder {
@@ -64,23 +64,23 @@ public class TransactionBuilder {
      *
      * @param callback the callback to set, may be null
      */
-    public void setGattCallback(@Nullable GattCallback callback) {
+    public void setGattCallback(@Nullable BluetoothGattCallback callback) {
         mTransaction.setGattCallback(callback);
     }
 
     public
     @Nullable
-    GattCallback getGattCallback() {
+    BluetoothGattCallback getGattCallback() {
         return mTransaction.getGattCallback();
     }
 
 
-    public void executeInThread(MiBandSupport miBandSupport){
+    public void queue(BluetoothQueue queue) {
         if (mQueued) {
             throw new IllegalStateException("This builder had already been queued. You must not reuse it.");
         }
         mQueued = true;
-        miBandSupport.runDispatchThread(mTransaction);
+        queue.add(mTransaction);
     }
 
     public Transaction getTransaction() {

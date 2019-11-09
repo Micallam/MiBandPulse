@@ -1,6 +1,8 @@
 package com.example.miband.Device;
 
 import android.app.Service;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothGattCallback;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
@@ -10,7 +12,6 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
-import com.example.miband.Bluetooth.Gatt.GattCallback;
 import com.example.miband.Utils.AndroidUtils;
 
 public class DeviceService extends Service {
@@ -140,7 +141,7 @@ public class DeviceService extends Service {
         }
 
         String action = intent.getAction();
-        boolean firstTime = intent.getBooleanExtra(EXTRA_CONNECT_FIRST_TIME, false);
+        boolean firstTime = intent.getBooleanExtra(EXTRA_CONNECT_FIRST_TIME, true);
 
         if (action == null) {
             Log.d(DeviceService.TAG, "no action");
@@ -164,33 +165,25 @@ public class DeviceService extends Service {
             case ACTION_CONNECT:
                 start(); // ensure started
                 MiBandDevice device = intent.getParcelableExtra(MiBandDevice.EXTRA_DEVICE);
-                String btDeviceAddress = device.getAddress();
 
-                boolean autoReconnect = true; //TODO Should we use it?
-
-                if (device != null && !device.isConnecting() && !device.isConnected()) {
+                if (!device.isConnecting() && !device.isConnected()) {
                     setDeviceSupport(null);
                     try {
-                        GattCallback gattCallback = new GattCallback(device);
-                        MiBandSupport miBandSupport = new MiBandSupport(device, this, gattCallback, gattCallback);
-                        gattCallback.setSupport(miBandSupport);
+                        MiBandSupport miBandSupport = new MiBandSupport();
+                        miBandSupport.setContext(device, BluetoothAdapter.getDefaultAdapter(), this);
 
-                        if (miBandSupport != null) {
-                            setDeviceSupport(miBandSupport);
-                            if (firstTime) {
-                                miBandSupport.connectFirstTime();
-                            } else {
-                                miBandSupport.setAutoReconnect(autoReconnect);
-                                miBandSupport.connect();
-                            }
+                        setDeviceSupport(miBandSupport);
+                        if (firstTime) {
+                            miBandSupport.connectFirstTime();
                         } else {
-                            AndroidUtils.toast(this, "Cannot connect: Can't create device support", Toast.LENGTH_SHORT);
+                            miBandSupport.connect();
                         }
                     } catch (Exception e) {
+                        Log.d(DeviceService.TAG, e.getMessage());
                         AndroidUtils.toast(this, "Cannot connect:" + e.getMessage(), Toast.LENGTH_SHORT);
                         setDeviceSupport(null);
                     }
-                } else if (device != null) {
+                } else {
                     // send an update at least
                     device.sendDeviceUpdateIntent(this);
                 }

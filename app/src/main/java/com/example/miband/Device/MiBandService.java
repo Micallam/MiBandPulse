@@ -60,7 +60,10 @@ public class MiBandService extends DeviceService{
     public static final UUID UUID_CHARACTERISTIC_HEART_RATE_CONTROL_POINT = GattCharacteristic.UUID_CHARACTERISTIC_HEART_RATE_CONTROL_POINT;
     public static final UUID UUID_CHARACTERISTIC_HEART_RATE_MEASUREMENT = GattCharacteristic.UUID_CHARACTERISTIC_HEART_RATE_MEASUREMENT;
 
+    public static final UUID UUID_CHARACTERISTIC_AUTH = UUID.fromString("00000009-0000-3512-2118-0009af100700");
 
+    public static final byte AUTH_BYTE = 0x00;
+    public static final byte AUTH_SEND_KEY = 0x01;
 
     /* FURTHER UUIDS that were mixed with the other params below. The base UUID for these is unknown */
 

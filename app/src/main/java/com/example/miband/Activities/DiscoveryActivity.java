@@ -2,7 +2,6 @@ package com.example.miband.Activities;
 
 import android.Manifest;
 import android.annotation.TargetApi;
-import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -14,7 +13,6 @@ import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
@@ -22,7 +20,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.os.ParcelUuid;
 import android.os.Parcelable;
 import android.util.Log;
 import android.view.View;
@@ -50,26 +47,8 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
 
     public static String TAG = "MiBand: DiscoveryActivity";
 
-    int BONDING_STYLE_NONE = 0;
-    /**
-     * Bond after discovery.
-     * This is not recommended, as there are mobile devices on which bonding does not work.
-     * Prefer to use #BONDING_STYLE_ASK instead.
-     */
-    int BONDING_STYLE_BOND = 1;
-    /**
-     * Let the user decide whether to bond or not after discovery.
-     * Prefer this over #BONDING_STYLE_BOND
-     */
-    int BONDING_STYLE_ASK = 2;
-
-
     private static final long SCAN_DURATION = 60000; // 60s
-
     private ScanCallback newLeScanCallback = null;
-
-    // Disabled for testing, it seems worse for a few people
-    private final boolean disableNewBLEScanning = true;
 
     private final Handler handler = new Handler();
 
@@ -78,7 +57,7 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         public void onReceive(Context context, Intent intent) {
             switch (Objects.requireNonNull(intent.getAction())) {
                 case BluetoothAdapter.ACTION_DISCOVERY_STARTED:
-                    if (isScanning != Scanning.SCANNING_BTLE && isScanning != Scanning.SCANNING_NEW_BTLE) {
+                    if (isScanning != Scanning.SCANNING_BTLE) {
                         discoveryStarted(Scanning.SCANNING_BT);
                     }
                     break;
@@ -89,11 +68,7 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
                             // continue with LE scan, if available
                             if (isScanning == Scanning.SCANNING_BT) {
                                 checkAndRequestLocationPermission();
-                                if (MainActivity.isRunningLollipopOrLater() && !disableNewBLEScanning) {
-                                    startDiscovery(Scanning.SCANNING_NEW_BTLE);
-                                } else {
-                                    startDiscovery(Scanning.SCANNING_BTLE);
-                                }
+                                startDiscovery(Scanning.SCANNING_BTLE);
                             } else {
                                 discoveryFinished();
                             }
@@ -104,18 +79,13 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
                     int newState = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF);
                     bluetoothStateChanged(newState);
                     break;
-                case BluetoothDevice.ACTION_FOUND: {
-                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                    short rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, MiBandDevice.RSSI_UNKNOWN);
-                    handleDeviceFound(device, rssi);
-                    break;
-                }
+                case BluetoothDevice.ACTION_FOUND:
                 case BluetoothDevice.ACTION_UUID: {
                     BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                    short rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, MiBandDevice.RSSI_UNKNOWN);
-                    Parcelable[] uuids = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID);
-                    ParcelUuid[] uuids2 = AndroidUtils.toParcelUuids(uuids);
-                    handleDeviceFound(device, rssi, uuids2);
+                    if (device.getName() != null) {
+                        handleDeviceFound(device);
+                    }
+
                     break;
                 }
                 case BluetoothDevice.ACTION_BOND_STATE_CHANGED: {
@@ -137,42 +107,6 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         finish();
     }
 
-    private void createBond(final MiBandDevice miBandDevice, int bondingStyle) {
-        if (bondingStyle == BONDING_STYLE_NONE) {
-            return;
-        }
-        if (bondingStyle == BONDING_STYLE_ASK) {
-            new AlertDialog.Builder(this)
-                    .setCancelable(true)
-                    .setTitle("Pair with " + miBandDevice.getName())
-                    .setMessage("Select Pair to pair your devices. If this fails, try again without pairing.")
-                    .setPositiveButton("Pair", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            doCreatePair(miBandDevice);
-                        }
-                    })
-                    .setNegativeButton("Don't pair", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            connectAndFinish(miBandDevice);
-                        }
-                    })
-                    .show();
-        } else {
-            doCreatePair(miBandDevice);
-        }
-    }
-
-    private void doCreatePair(MiBandDevice miBandDevice) {
-        AndroidUtils.toast(DiscoveryActivity.this, "Attempting to pair with " + miBandDevice.getName(), Toast.LENGTH_SHORT);
-        if (miBandDevice.getDevice().createBond()) {
-            bondingDevice = miBandDevice;
-        } else {
-            AndroidUtils.toast(DiscoveryActivity.this,"Bonding with " + miBandDevice.getName() + " failed immediately", Toast.LENGTH_SHORT);
-        }
-    }
-
     private void handleDeviceBonded() {
         if (bondingDevice == null){
             AndroidUtils.toast(DiscoveryActivity.this, "Cannot handle device bond. Device not found.", Toast.LENGTH_SHORT);
@@ -187,15 +121,12 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
             logMessageContent(scanRecord);
-            handleDeviceFound(device, (short) rssi);
+            if (device.getName() != null){
+                handleDeviceFound(device);
+            }
         }
     };
 
-
-    // why use a method to get callback?
-    // because this callback need API >= 21
-    // we cant add @TARGETAPI("Lollipop") at class header
-    // so use a method with SDK check to return this callback
     private ScanCallback getScanCallback() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             newLeScanCallback = new ScanCallback() {
@@ -205,17 +136,10 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
                     super.onScanResult(callbackType, result);
                     try {
                         ScanRecord scanRecord = result.getScanRecord();
-                        ParcelUuid[] uuids = null;
-                        if (scanRecord != null) {
-                            //logMessageContent(scanRecord.getBytes());
-                            List<ParcelUuid> serviceUuids = scanRecord.getServiceUuids();
-                            if (serviceUuids != null) {
-                                uuids = serviceUuids.toArray(new ParcelUuid[0]);
-                            }
+                        Log.d(DiscoveryActivity.TAG, result.getDevice().getName() + ": " + ((scanRecord != null) ? scanRecord.getBytes().length : -1));
+                        if (result.getDevice().getName() != null) {
+                            handleDeviceFound(result.getDevice());
                         }
-                        Log.d(DiscoveryActivity.TAG, result.getDevice().getName() + ": " +
-                                ((scanRecord != null) ? scanRecord.getBytes().length : -1));
-                        handleDeviceFound(result.getDevice(), (short) result.getRssi(), uuids);
                     } catch (NullPointerException e) {
                         Log.d(DiscoveryActivity.TAG, "Error handling scan result");
                     }
@@ -249,7 +173,6 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
     private enum Scanning {
         SCANNING_BT,
         SCANNING_BTLE,
-        SCANNING_NEW_BTLE,
         SCANNING_OFF
     }
 
@@ -330,19 +253,7 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         super.onDestroy();
     }
 
-    private void handleDeviceFound(BluetoothDevice device, short rssi) {
-        ParcelUuid[] uuids = device.getUuids();
-        if (uuids == null) {
-            if (device.fetchUuidsWithSdp()) {
-                return;
-            }
-        }
-
-        handleDeviceFound(device, rssi, uuids);
-    }
-
-
-    private void handleDeviceFound(BluetoothDevice device, short rssi, ParcelUuid[] uuids) {
+    private void handleDeviceFound(BluetoothDevice device) {
         Log.d(DiscoveryActivity.TAG, "found device: " + device.getName() + ", " + device.getAddress());
 
         MiBandDevice candidate = new MiBandDevice(device, device.getAddress());
@@ -373,17 +284,9 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         Log.d(DiscoveryActivity.TAG, "Starting discovery: " + what);
         discoveryStarted(what); // just to make sure
         if (ensureBluetoothReady()) {
-            if (what == Scanning.SCANNING_BT) {
-                startBTDiscovery();
-            } else if (what == Scanning.SCANNING_BTLE) {
+            if (what == Scanning.SCANNING_BTLE) {
                 if (AndroidUtils.supportsBluetoothLE()) {
                     startBTLEDiscovery();
-                } else {
-                    discoveryFinished();
-                }
-            } else if (what == Scanning.SCANNING_NEW_BTLE) {
-                if (AndroidUtils.supportsBluetoothLE()) {
-                    startNEWBTLEDiscovery();
                 } else {
                     discoveryFinished();
                 }
@@ -410,8 +313,6 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
                 stopBTDiscovery();
             } else if (wasScanning == Scanning.SCANNING_BTLE) {
                 stopBTLEDiscovery();
-            } else if (wasScanning == Scanning.SCANNING_NEW_BTLE) {
-                stopNewBTLEDiscovery();
             }
             handler.removeMessages(0, stopRunnable);
         }
@@ -425,23 +326,6 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
     private void stopBTDiscovery() {
         if (adapter != null)
             adapter.cancelDiscovery();
-    }
-
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    private void stopNewBTLEDiscovery() {
-        if (adapter == null)
-            return;
-
-        BluetoothLeScanner bluetoothLeScanner = adapter.getBluetoothLeScanner();
-        if (bluetoothLeScanner == null) {
-            Log.d(DiscoveryActivity.TAG, "could not get BluetoothLeScanner()!");
-            return;
-        }
-        if (newLeScanCallback == null) {
-            Log.d(DiscoveryActivity.TAG, "newLeScanCallback == null!");
-            return;
-        }
-        bluetoothLeScanner.stopScan(newLeScanCallback);
     }
 
     private void bluetoothStateChanged(int newState) {
@@ -472,8 +356,6 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         startButton.setEnabled(available);
         if (available) {
             adapter.cancelDiscovery();
-            // must not return the result of cancelDiscovery()
-            // appears to return false when currently not scanning
             return true;
         }
         return false;
@@ -503,52 +385,11 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         return true;
     }
 
-    // New BTLE Discovery use startScan (List<ScanFilter> filters,
-    //                                  ScanSettings settings,
-    //                                  ScanCallback callback)
-    // It's added on API21
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    private void startNEWBTLEDiscovery() {
-        // Only use new API when user uses Lollipop+ device
-        Log.d(DiscoveryActivity.TAG, "Start New BTLE Discovery");
-        handler.removeMessages(0, stopRunnable);
-        handler.sendMessageDelayed(getPostMessage(stopRunnable), SCAN_DURATION);
-        adapter.getBluetoothLeScanner().startScan(getScanFilters(), getScanSettings(), getScanCallback());
-    }
-
-    private List<ScanFilter> getScanFilters() {
-        List<ScanFilter> allFilters = new ArrayList<>();
-        allFilters.addAll(MiBandDevice.createBLEScanFilters());
-
-        return allFilters;
-    }
-
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    private ScanSettings getScanSettings() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return new ScanSettings.Builder()
-                    .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
-                    .setMatchMode(android.bluetooth.le.ScanSettings.MATCH_MODE_STICKY)
-                    .build();
-        } else {
-            return new ScanSettings.Builder()
-                    .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
-                    .build();
-        }
-    }
-
     private void startBTLEDiscovery() {
         Log.d(DiscoveryActivity.TAG, "Starting BTLE Discovery");
         handler.removeMessages(0, stopRunnable);
         handler.sendMessageDelayed(getPostMessage(stopRunnable), SCAN_DURATION);
         adapter.startLeScan(leScanCallback);
-    }
-
-    private void startBTDiscovery() {
-        Log.d(DiscoveryActivity.TAG, "Starting BT Discovery");
-        handler.removeMessages(0, stopRunnable);
-        handler.sendMessageDelayed(getPostMessage(stopRunnable), SCAN_DURATION);
-        adapter.startDiscovery();
     }
 
     private void checkAndRequestLocationPermission() {
@@ -570,13 +411,7 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
             Log.d(DiscoveryActivity.TAG, "Device candidate clicked, but item not found");
             return true;
         }
-        /*
-        TODO Device settings activity
-        Intent startIntent;
-        startIntent = new Intent(this, DeviceSettingsActivity.class);
-        startIntent.putExtra(MiBandDevice.EXTRA_DEVICE, deviceCandidate);
-        startActivity(startIntent);
-         */
+
         return true;
     }
 
@@ -592,43 +427,12 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
 
         Log.d(DiscoveryActivity.TAG, "Using device candidate " + deviceCandidate.getName() + " " + deviceCandidate.getAddress());
 
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(MiBandDevice.EXTRA_DEVICE_CANDIDATE, deviceCandidate);
+
         Intent intent = new Intent(this, PairingActivity.class);
-        intent.putExtra(MiBandDevice.EXTRA_DEVICE_CANDIDATE, deviceCandidate);
+        intent.putExtra("bundle", bundle);
         startActivity(intent);
-
-        /*
-        if (pairingActivity != null) {
-            Intent intent = new Intent(this, pairingActivity);
-            intent.putExtra(DeviceCoordinator.EXTRA_DEVICE_CANDIDATE, deviceCandidate);
-            startActivity(intent);
-        } else {
-            GBDevice device = DeviceHelper.getInstance().toSupportedDevice(deviceCandidate);
-            int bondingStyle = coordinator.getBondingStyle(device);
-            if (bondingStyle == DeviceCoordinator.BONDING_STYLE_NONE) {
-                Log.d(DiscoveryActivity.TAG, "No bonding needed, according to coordinator, so connecting right away");
-                connectAndFinish(deviceCandidate);
-                return;
-            }
-
-            try {
-                BluetoothDevice btDevice = adapter.getRemoteDevice(deviceCandidate.getMacAddress());
-                switch (btDevice.getBondState()) {
-                    case BluetoothDevice.BOND_NONE: {
-                        createBond(deviceCandidate, bondingStyle);
-                        break;
-                    }
-                    case BluetoothDevice.BOND_BONDING:
-                        // async, wait for bonding event to finish this activity
-                        bondingDevice = deviceCandidate;
-                        break;
-                    case BluetoothDevice.BOND_BONDED:
-                        handleDeviceBonded();
-                        break;
-                }
-            } catch (Exception e) {
-                Log.d(DiscoveryActivity.TAG, "Error pairing device: " + deviceCandidate.getAddress());
-            }
-        }*/
     }
 
     @Override
@@ -636,8 +440,5 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         super.onPause();
         stopBTDiscovery();
         stopBTLEDiscovery();
-        if (MainActivity.isRunningLollipopOrLater() && !disableNewBLEScanning) {
-            stopNewBTLEDiscovery();
-        }
     }
 }

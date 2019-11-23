@@ -61,11 +61,38 @@ public class MiBandService extends DeviceService{
     public static final UUID UUID_CHARACTERISTIC_HEART_RATE_MEASUREMENT = GattCharacteristic.UUID_CHARACTERISTIC_HEART_RATE_MEASUREMENT;
 
     public static final UUID UUID_CHARACTERISTIC_AUTH = UUID.fromString("00000009-0000-3512-2118-0009af100700");
+    public static final UUID UUID_CHARACTERISTIC_DEVICEEVENT = UUID.fromString("00000010-0000-3512-2118-0009af100700");
+    public static final UUID UUID_CHARACTERISTIC_AUDIO = UUID.fromString("00000012-0000-3512-2118-0009af100700");
+    public static final UUID UUID_CHARACTERISTIC_AUDIODATA = UUID.fromString("00000013-0000-3512-2118-0009af100700");
+
 
     public static final byte AUTH_BYTE = 0x00;
+    public static final byte CRYPT_FLAGS = 0x00;
     public static final byte AUTH_SEND_KEY = 0x01;
+    public static final byte AUTH_RESPONSE = 0x10;
+    public static final byte AUTH_SUCCESS = 0x01;
+    public static final byte AUTH_REQUEST_RANDOM_AUTH_NUMBER = 0x02;
+    public static final byte AUTH_SEND_ENCRYPTED_AUTH_NUMBER = 0x03;
 
+    public static final UUID UUID_CHARACTERISTIC_3_CONFIGURATION = UUID.fromString("00000003-0000-3512-2118-0009af100700");
+    public static final UUID UUID_UNKNOWN_CHARACTERISTIC4 = UUID.fromString("00000004-0000-3512-2118-0009af100700");
+    public static final UUID UUID_CHARACTERISTIC_5_ACTIVITY_DATA = UUID.fromString("00000005-0000-3512-2118-0009af100700");
+    public static final UUID UUID_CHARACTERISTIC_6_BATTERY_INFO = UUID.fromString("00000006-0000-3512-2118-0009af100700");
+    public static final UUID UUID_CHARACTERISTIC_7_REALTIME_STEPS = UUID.fromString("00000007-0000-3512-2118-0009af100700");
+    public static final UUID UUID_CHARACTERISTIC_8_USER_SETTINGS = UUID.fromString("00000008-0000-3512-2118-0009af100700");
     /* FURTHER UUIDS that were mixed with the other params below. The base UUID for these is unknown */
+
+
+    public static final byte COMMAND_SET_PERIODIC_HR_MEASUREMENT_INTERVAL = 0x14;
+
+
+    public static final byte RESPONSE = 0x10;
+    public static final byte SUCCESS = 0x01;
+    public static final byte COMMAND_ACTIVITY_DATA_START_DATE = 0x01;
+    public static final byte COMMAND_ACTIVITY_DATA_TYPE_ACTIVTY = 0x01;
+
+    public static final byte[] RESPONSE_ACTIVITY_DATA_START_DATE_SUCCESS = new byte[] { RESPONSE, COMMAND_ACTIVITY_DATA_START_DATE, SUCCESS};
+    public static final byte[] RESPONSE_FINISH_SUCCESS = new byte[] {RESPONSE, 2, SUCCESS };
 
     public static final byte ALIAS_LEN = 0xa;
 

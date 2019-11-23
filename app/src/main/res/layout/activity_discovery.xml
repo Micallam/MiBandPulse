@@ -51,7 +51,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceSmall"
-            android:text="Make your device discoverable. Currently connected devices will likely not be discovered. Activate location (e.g. GPS) on Android 6+. Disable Privacy Guard for Gadgetbridge, because it may crash and reboot your phone. If no device is found after a few minutes, try again after rebooting your mobile device."
+            android:text="Make your device discoverable. Currently connected devices will likely not be discovered. Activate location (e.g. GPS) on Android 6+."
             android:id="@+id/discovery_hint"
             android:textColor="#ff808080"
             android:gravity="bottom"

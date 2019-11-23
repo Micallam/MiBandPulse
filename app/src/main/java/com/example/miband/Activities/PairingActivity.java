@@ -37,7 +37,7 @@ public class PairingActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             if (MiBandDevice.ACTION_DEVICE_CHANGED.equals(intent.getAction())) {
                 MiBandDevice device = intent.getParcelableExtra(MiBandDevice.EXTRA_DEVICE);
-                Log.d(PairingActivity.TAG, "pairing activity: device changed: " + device.getName() + " " + device.getAddress());
+                Log.d(PairingActivity.TAG, "pairing activity: device changed: " + device.getName() + " " + device.getAddress() + " state: " + device.getState());
                 if (PairingActivity.this.device.getAddress().equals(device.getAddress())) {
                     if (device.isInitialized()) {
                         pairingFinished(true, PairingActivity.this.device);
@@ -103,24 +103,6 @@ public class PairingActivity extends AppCompatActivity {
             finish();
             return;
         }
-/*
-        if (coordinator.getSupportedDeviceSpecificSettings(device) != null) { // FIXME: this will no longer be sane in the future
-            SharedPreferences sharedPrefs = GBApplication.getDeviceSpecificSharedPrefs(device.getAddress());
-            String authKey = sharedPrefs.getString("authkey", null);
-            if (authKey == null || authKey.isEmpty()) {
-                SharedPreferences.Editor editor = sharedPrefs.edit();
-
-                String randomAuthkey = RandomStringUtils.random(16, true, true);
-                editor.putString("authkey", randomAuthkey);
-                editor.apply();
-            }
-        }
-
-        if (!MiBandCoordinator.hasValidUserInfo()) {
-            Intent userSettingsIntent = new Intent(this, MiBandPreferencesActivity.class);
-            startActivityForResult(userSettingsIntent, REQ_CODE_USER_SETTINGS, null);
-            return;
-        }*/
 
         // already valid user info available, use that and pair
         startPairing();
@@ -193,24 +175,22 @@ public class PairingActivity extends AppCompatActivity {
         AndroidUtils.safeUnregisterBroadcastReceiver(this, mBondingReceiver);
 
         if (pairedSuccessfully) {
-            // remember the device since we do not necessarily pair... temporary -- we probably need
-            // to query the db for available devices in ControlCenter. But only remember un-bonded
-            // devices, as bonded devices are displayed anyway.
-            String deviceAddress = device.getAddress();
-            BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(deviceAddress);
-           /*TODO next activity and find sth more about Prefs class
-            if (device != null && device.getBondState() == BluetoothDevice.BOND_NONE) {
-                Prefs prefs = GBApplication.getPrefs();
-                prefs.getPreferences().edit().putString(MiBandConst.PREF_MIBAND_ADDRESS, deviceAddress).apply();
+            Intent intent = new Intent(PairingActivity.this, DeviceControlActivity.class);
+
+            if (device != null){
+                Log.d(PairingActivity.TAG, "tu jest git");
             }
-            Intent intent = new Intent(this, ControlCenterv2.class).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(intent);*/
+
+            Bundle bundle = new Bundle();
+            bundle.putParcelable(MiBandDevice.EXTRA_DEVICE, device);
+
+            intent.putExtra("bundle", bundle);
+            startActivity(intent);
         }
         finish();
     }
 
     private void stopPairing() {
-        // TODO
         isPairing = false;
     }
 

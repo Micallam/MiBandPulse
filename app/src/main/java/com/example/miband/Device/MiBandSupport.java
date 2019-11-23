@@ -1,5 +1,6 @@
 package com.example.miband.Device;
 
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
@@ -19,14 +20,29 @@ import com.example.miband.Bluetooth.Gatt.GattService;
 import com.example.miband.Bluetooth.TransactionBuilder;
 import com.example.miband.Utils.AndroidUtils;
 import com.example.miband.Utils.BleNamesResolver;
+import com.example.miband.Utils.CalendarUtils;
+
+import org.apache.commons.lang3.time.StopWatch;
 
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 
 public class MiBandSupport extends BluetoothGattCallback {
     public static String TAG = "MiBand: MiBandSupport";
@@ -62,6 +78,23 @@ public class MiBandSupport extends BluetoothGattCallback {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
+    public TransactionBuilder performInitialized(String taskName) throws IOException {
+        if (!mDevice.isConnected()) {
+            if (!connect()) {
+                throw new IOException("1: Unable to connect to device: " + getDevice());
+            }
+        }
+        if (!mDevice.isInitialized()) {
+            //TODO handle uninitialized state
+
+            /*TransactionBuilder builder = createTransactionBuilder("Initialize device");
+            builder.add(new CheckInitializedAction(gbDevice));
+            initializeDevice(builder).queue(getQueue());*/
+        }
+        return createTransactionBuilder(taskName);
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
     public boolean connect() {
         if (mQueue == null) {
             mQueue = new BluetoothQueue(getBluetoothAdapter(), getDevice(), this, getContext());
@@ -85,6 +118,109 @@ public class MiBandSupport extends BluetoothGattCallback {
     }
 
     private void close() {
+    }
+
+    private byte[] requestAuthNumber() {
+        return new byte[]{MiBandService.AUTH_REQUEST_RANDOM_AUTH_NUMBER, MiBandService.AUTH_BYTE};
+    }
+
+    public void performImmediately(TransactionBuilder builder) throws IOException {
+        if (!mDevice.isConnected()) {
+            throw new IOException("Not connected to device: " + getDevice());
+        }
+        getQueue().insert(builder.getTransaction());
+    }
+
+
+    public byte[] getTimeBytes(Calendar calendar, TimeUnit precision) {
+        byte[] bytes;
+        if (precision == TimeUnit.MINUTES) {
+            bytes = CalendarUtils.shortCalendarToRawBytes(calendar);
+        } else if (precision == TimeUnit.SECONDS) {
+            bytes = CalendarUtils.calendarToRawBytes(calendar);
+        } else {
+            throw new IllegalArgumentException("Unsupported precision, only MINUTES and SECONDS are supported till now");
+        }
+        byte[] tail = new byte[] { 0, CalendarUtils.mapTimeZone(calendar.getTimeZone(), 1) };
+        // 0 = adjust reason bitflags? or DST offset?? , timezone
+//        byte[] tail = new byte[] { 0x2 }; // reason
+        byte[] all = CalendarUtils.join(bytes, tail);
+        return all;
+    }
+
+
+    public MiBandSupport setCurrentTimeWithService(TransactionBuilder builder) {
+        GregorianCalendar now = new GregorianCalendar();
+        byte[] bytes = getTimeBytes(now, TimeUnit.SECONDS);
+        builder.write(getCharacteristic(GattCharacteristic.UUID_CHARACTERISTIC_CURRENT_TIME), bytes);
+        return this;
+    }
+
+    public MiBandSupport enableFurtherNotifications(TransactionBuilder builder, boolean enable) {
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_3_CONFIGURATION), enable);
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_6_BATTERY_INFO), enable);
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_DEVICEEVENT), enable);
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUDIO), enable);
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUDIODATA), enable);
+
+        return this;
+    }
+
+    public void onCharacteristicChanged(BluetoothGatt gatt,
+                                           BluetoothGattCharacteristic characteristic) {
+        UUID characteristicUUID = characteristic.getUuid();
+        if (MiBandService.UUID_CHARACTERISTIC_AUTH.equals(characteristicUUID)) {
+            try {
+                byte[] value = characteristic.getValue();
+
+                if (value[0] == MiBandService.AUTH_RESPONSE &&
+                        value[1] == MiBandService.AUTH_SEND_KEY &&
+                        value[2] == MiBandService.AUTH_SUCCESS) {
+                    TransactionBuilder builder = createTransactionBuilder("Sending the secret key to the device");
+                    builder.write(characteristic, requestAuthNumber());
+                    performImmediately(builder);
+                } else if (value[0] == MiBandService.AUTH_RESPONSE &&
+                        (value[1] & 0x0f) == MiBandService.AUTH_REQUEST_RANDOM_AUTH_NUMBER &&
+                        value[2] == MiBandService.AUTH_SUCCESS) {
+                    byte[] eValue = handleAESAuth(value, getSecretKey());
+                    byte[] responseValue = org.apache.commons.lang3.ArrayUtils.addAll(
+                            new byte[]{(byte) (MiBandService.AUTH_SEND_ENCRYPTED_AUTH_NUMBER | MiBandService.CRYPT_FLAGS), MiBandService.AUTH_BYTE}, eValue);
+
+                    TransactionBuilder builder = createTransactionBuilder("Sending the encrypted random key to the device");
+                    builder.write(characteristic, responseValue);
+                    setCurrentTimeWithService(builder);
+                    performImmediately(builder);
+                } else if (value[0] == MiBandService.AUTH_RESPONSE &&
+                        (value[1] & 0x0f) == MiBandService.AUTH_SEND_ENCRYPTED_AUTH_NUMBER &&
+                        value[2] == MiBandService.AUTH_SUCCESS) {
+                    TransactionBuilder builder = createTransactionBuilder("Authenticated, now initialize phase 2");
+                    builder.add(new SetDeviceStateAction(getDevice(), MiBandDevice.State.INITIALIZING, getContext()));
+                    enableFurtherNotifications(builder, true);
+                    //phase2Initialize(builder);
+                    //phase3Initialize(builder);
+                    setInitialized(builder);
+                    performImmediately(builder);
+                }
+            } catch (Exception e) {
+                AndroidUtils.toast(getContext(), "Error authenticating device", Toast.LENGTH_LONG);
+            }
+            return;
+        }
+        else if (GattCharacteristic.UUID_CHARACTERISTIC_HEART_RATE_MEASUREMENT.equals(characteristicUUID)){
+            Log.d(MiBandSupport.TAG, "Heart rate characteristic captured");
+            handleHeartrate(characteristic.getValue());
+        }
+        else {
+            Log.d(MiBandSupport.TAG, "Unhandled characteristic changed: " + characteristicUUID);
+        }
+    }
+
+    private void handleHeartrate(byte[] value) {
+        if (value.length == 2 && value[0] == 0) {
+            int hrValue = (value[1] & 0xff);
+
+            Log.d(MiBandSupport.TAG, "heart rate: " + hrValue);
+        }
     }
 
     public void onServicesDiscovered(BluetoothGatt gatt, int status) {
@@ -157,6 +293,9 @@ public class MiBandSupport extends BluetoothGattCallback {
 
     private MiBandSupport enableNotifications(TransactionBuilder builder, boolean enable) {
         builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_NOTIFICATION), enable);
+        builder.notify(getCharacteristic(GattService.UUID_SERVICE_CURRENT_TIME), enable);
+        // Notify CHARACTERISTIC9 to receive random auth code
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUTH), enable);
         return this;
     }
 
@@ -260,4 +399,11 @@ public class MiBandSupport extends BluetoothGattCallback {
         return mContext;
     }
 
+    private byte[] handleAESAuth(byte[] value, byte[] secretKey) throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, IllegalBlockSizeException {
+        byte[] mValue = Arrays.copyOfRange(value, 3, 19);
+        @SuppressLint("GetInstance") Cipher ecipher = Cipher.getInstance("AES/ECB/NoPadding");
+        SecretKeySpec newKey = new SecretKeySpec(secretKey, "AES");
+        ecipher.init(Cipher.ENCRYPT_MODE, newKey);
+        return ecipher.doFinal(mValue);
+    }
 }

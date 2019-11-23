@@ -12,6 +12,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
+import com.example.miband.MainActivity;
 import com.example.miband.Utils.AndroidUtils;
 
 public class DeviceService extends Service {
@@ -217,6 +218,11 @@ public class DeviceService extends Service {
             mDevice = null;
         }
         mMiBandSupport = deviceSupport;
+
+        if (mMiBandSupport != null) {
+            MainActivity.setMiBandSupport(mMiBandSupport);
+        }
+
         mDevice = mMiBandSupport != null ? mMiBandSupport.getDevice() : null;
     }
 

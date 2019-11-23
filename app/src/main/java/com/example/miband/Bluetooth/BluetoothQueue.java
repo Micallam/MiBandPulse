@@ -18,6 +18,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
+import com.example.miband.Bluetooth.Actions.AbstractGattListenerWriteAction;
 import com.example.miband.Bluetooth.Actions.BtLEAction;
 import com.example.miband.Device.MiBandDevice;
 
@@ -74,7 +75,7 @@ public class BluetoothQueue {
                     }
 
                     if(qTransaction != null) {
-                        Transaction transaction = (Transaction)qTransaction;
+                        Transaction transaction = qTransaction;
                         internalGattCallback.setTransactionGattCallback(transaction.getGattCallback());
                         mAbortTransaction = false;
                         // Run all actions of the transaction until one doesn't succeed
@@ -87,13 +88,13 @@ public class BluetoothQueue {
                             mWaitForActionResultLatch = new CountDownLatch(1);
 
                             Log.d(BluetoothQueue.TAG, "About to run action: " + action);
-                            /*
-                            TODO Ensure this is not needed
-                            if (action instanceof GattListenerAction) {
+
+                            if (action instanceof AbstractGattListenerWriteAction) {
                                 // this special action overwrites the transaction gatt listener (if any), it must
                                 // always be the last action in the transaction
-                                internalGattCallback.setTransactionGattCallback(((GattListenerAction) action).getGattCallback());
-                            }*/
+                                internalGattCallback.setTransactionGattCallback(((AbstractGattListenerWriteAction) action).getGattCallback());
+                            }
+
                             if (action.run(mBluetoothGatt)) {
                                 // check again, maybe due to some condition, action did not need to write, so we can't wait
                                 boolean waitForResult = action.expectsResult();
@@ -346,6 +347,7 @@ public class BluetoothQueue {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            Log.d(BluetoothQueue.TAG, "On services discovered...");
             if (!checkCorrectGattInstance(gatt, "services discovered: " + getStatusString(status))) {
                 return;
             }

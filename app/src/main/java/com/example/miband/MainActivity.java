@@ -17,6 +17,7 @@ import android.widget.Button;
 
 import com.example.miband.Activities.DiscoveryActivity;
 import com.example.miband.Device.MiBandService;
+import com.example.miband.Device.MiBandSupport;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -25,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static MainActivity context;
     private static MiBandService miBandService;
+    private static MiBandSupport miBandSupport;
 
     BluetoothAdapter bluetoothAdapter;
 
@@ -136,5 +138,13 @@ public class MainActivity extends AppCompatActivity {
 
     public static MiBandService getMiBandService(){
         return miBandService;
+    }
+
+    public static void setMiBandSupport(MiBandSupport miBandSupport) {
+        MainActivity.miBandSupport = miBandSupport;
+    }
+
+    public static MiBandSupport getMiBandSupport(){
+        return MainActivity.miBandSupport;
     }
 }

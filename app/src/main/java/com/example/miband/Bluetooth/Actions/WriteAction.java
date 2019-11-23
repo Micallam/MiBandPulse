@@ -39,7 +39,6 @@ public class WriteAction extends BtLEAction {
 
     @Override
     public boolean expectsResult() {
-        return false;
-        //return true;
+        return true;
     }
 }

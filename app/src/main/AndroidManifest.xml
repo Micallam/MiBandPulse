@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.miband" >
+    package="com.example.miband">
 
     <uses-feature android:name="android.hardware.bluetooth" />
+
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED"
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_PRIVILEGED"
         tools:ignore="ProtectedPermissions" />
 
     <application
@@ -19,21 +21,22 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
-        <activity android:name=".MainActivity" >
+        <activity android:name=".Activities.DeviceControlActivity"></activity>
+        <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity android:name=".Activities.DiscoveryActivity"
-            android:parentActivityName=".MainActivity"
-            android:label="Discovery activity"/>
-
-        <activity android:name=".Activities.PairingActivity"
-            android:parentActivityName=".Activities.DiscoveryActivity"
-            android:label="Pairing activity"/>
+        <activity
+            android:name=".Activities.DiscoveryActivity"
+            android:label="Discovery activity"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".Activities.PairingActivity"
+            android:label="Pairing activity"
+            android:parentActivityName=".Activities.DiscoveryActivity" />
 
         <service android:name=".Device.DeviceService" />
     </application>

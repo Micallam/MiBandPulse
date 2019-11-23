@@ -23,6 +23,13 @@ public class AndroidUtils {
         return uuids2;
     }
 
+    public static String ensureNotNull(String message) {
+        if (message != null) {
+            return message;
+        }
+        return "";
+    }
+
     public static void toast(final Context context, final String message, final int displayTime) {
         Looper mainLooper = Looper.getMainLooper();
         if (Thread.currentThread() == mainLooper.getThread()) {

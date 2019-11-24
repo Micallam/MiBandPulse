@@ -10,50 +10,34 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class Transaction {
+class Transaction {
     private final List<BtLEAction> mActions = new ArrayList<>(4);
     private
     @Nullable
     BluetoothGattCallback gattCallback;
 
-    private final String mName;
-    private final long creationTimestamp = System.currentTimeMillis();
-
-    public String getTaskName() {
-        return mName;
-    }
-
-    public Transaction(String taskName) {
-        mName = taskName;
-    }
-
-    public void add(BtLEAction action) {
+    void add(BtLEAction action) {
         mActions.add(action);
     }
 
-    public List<BtLEAction> getActions() {
+    List<BtLEAction> getActions() {
         return Collections.unmodifiableList(mActions);
     }
 
-    public boolean isEmpty() {
-        return mActions.isEmpty();
+    boolean hasElements() {
+        return !mActions.isEmpty();
     }
 
-    public void setGattCallback(@Nullable BluetoothGattCallback callback) {
+    void setGattCallback(@Nullable BluetoothGattCallback callback) {
         gattCallback = callback;
     }
 
     /**
      * Returns the GattCallback for this transaction, or null if none.
      */
-    public
     @Nullable
     BluetoothGattCallback getGattCallback() {
         return gattCallback;
-    }
-
-    public int getActionCount() {
-        return mActions.size();
     }
 
 }

@@ -3,18 +3,20 @@ package com.example.miband.Bluetooth.Actions;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 
-import com.example.miband.Bluetooth.Gatt.GattCharacteristic;
+import androidx.annotation.NonNull;
+
+import com.example.miband.Device.MiBandService;
 
 import java.util.Date;
 import java.util.UUID;
 
 public abstract class BtLEAction {
-    public static final UUID UUID_DESCRIPTOR_GATT_CLIENT_CHARACTERISTIC_CONFIGURATION = UUID.fromString((String.format(GattCharacteristic.BASE_UUID, "2902")));
+    static final UUID UUID_DESCRIPTOR_GATT_CLIENT_CHARACTERISTIC_CONFIGURATION = UUID.fromString((String.format(MiBandService.BASE_UUID, "2902")));
 
     private final BluetoothGattCharacteristic characteristic;
     private final long creationTimestamp;
 
-    public BtLEAction(BluetoothGattCharacteristic characteristic) {
+    BtLEAction(BluetoothGattCharacteristic characteristic) {
         this.characteristic = characteristic;
         creationTimestamp = System.currentTimeMillis();
     }
@@ -39,16 +41,17 @@ public abstract class BtLEAction {
     /**
      * Returns the GATT characteristic being read/written/...
      *
-     * @return the GATT characteristic, or <code>null</code>
+     * @return the GATT characteristic, or null
      */
     public BluetoothGattCharacteristic getCharacteristic() {
         return characteristic;
     }
 
-    protected String getCreationTime() {
+    private String getCreationTime() {
         return new Date(creationTimestamp).toString();
     }
 
+    @NonNull
     public String toString() {
         BluetoothGattCharacteristic characteristic = getCharacteristic();
         String uuid = characteristic == null ? "(null)" : characteristic.getUuid().toString();

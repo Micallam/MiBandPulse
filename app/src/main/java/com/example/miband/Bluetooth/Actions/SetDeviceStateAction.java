@@ -3,6 +3,8 @@ package com.example.miband.Bluetooth.Actions;
 import android.bluetooth.BluetoothGatt;
 import android.content.Context;
 
+import androidx.annotation.NonNull;
+
 import com.example.miband.Device.MiBandDevice;
 
 public class SetDeviceStateAction extends BtLEAction {
@@ -34,6 +36,7 @@ public class SetDeviceStateAction extends BtLEAction {
         return context;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return super.toString() + " to " + deviceState;

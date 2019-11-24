@@ -1,24 +1,9 @@
 package com.example.miband.Utils;
 
 import java.util.Calendar;
-import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
 public class CalendarUtils {
-    public static byte[] shortCalendarToRawBytes(Calendar timestamp) {
-        // MiBand2:
-        // year,year,month,dayofmonth,hour,minute
-
-        byte[] year = fromUint16(timestamp.get(Calendar.YEAR));
-        return new byte[] {
-                year[0],
-                year[1],
-                fromUint8(timestamp.get(Calendar.MONTH) + 1),
-                fromUint8(timestamp.get(Calendar.DATE)),
-                fromUint8(timestamp.get(Calendar.HOUR_OF_DAY)),
-                fromUint8(timestamp.get(Calendar.MINUTE))
-        };
-    }
 
     public static byte[] calendarToRawBytes(Calendar timestamp) {
         // MiBand3:
@@ -34,41 +19,11 @@ public class CalendarUtils {
                 fromUint8(timestamp.get(Calendar.MINUTE)),
                 fromUint8(timestamp.get(Calendar.SECOND)),
                 dayOfWeekToRawBytes(timestamp),
-                0, // fractions256 (not set)
-                // 0 (DST offset?) Mi2
-                // k (tz) Mi2
+                0,
         };
     }
 
-    public static Calendar fromTimeBytes(byte[] bytes) {
-        GregorianCalendar timestamp = rawBytesToCalendar(bytes);
-        return timestamp;
-    }
-
-    public static GregorianCalendar rawBytesToCalendar(byte[] value) {
-        if (value.length >= 7) {
-            int year = toUint16(value[0], value[1]);
-            GregorianCalendar timestamp = new GregorianCalendar(
-                    year,
-                    (value[2] & 0xff) - 1,
-                    value[3] & 0xff,
-                    value[4] & 0xff,
-                    value[5] & 0xff,
-                    value[6] & 0xff
-            );
-
-            if (value.length > 7) {
-                TimeZone timeZone = TimeZone.getDefault();
-                timeZone.setRawOffset(value[7] * 15 * 60 * 1000);
-                timestamp.setTimeZone(timeZone);
-            }
-            return timestamp;
-        }
-
-        return new GregorianCalendar();
-    }
-
-    public static byte mapTimeZone(TimeZone timeZone, int timezoneFlags) {
+    public static byte mapTimeZone(TimeZone timeZone) {
         int offsetMillis = timeZone.getRawOffset();
         int utcOffsetInHours =  (offsetMillis / (1000 * 60 * 60));
         return (byte) (utcOffsetInHours * 4);
@@ -90,26 +45,20 @@ public class CalendarUtils {
 
     private static byte dayOfWeekToRawBytes(Calendar cal) {
         int calValue = cal.get(Calendar.DAY_OF_WEEK);
-        switch (calValue) {
-            case Calendar.SUNDAY:
-                return 7;
-            default:
-                return (byte) (calValue - 1);
+        if (calValue == Calendar.SUNDAY) {
+            return 7;
         }
+        return (byte) (calValue - 1);
     }
 
-    public static byte fromUint8(int value) {
+    private static byte fromUint8(int value) {
         return (byte) (value & 0xff);
     }
 
-    public static byte[] fromUint16(int value) {
+    private static byte[] fromUint16(int value) {
         return new byte[] {
                 (byte) (value & 0xff),
                 (byte) ((value >> 8) & 0xff),
         };
-    }
-
-    public static int toUint16(byte... bytes) {
-        return (bytes[0] & 0xff) | ((bytes[1] & 0xff) << 8);
     }
 }

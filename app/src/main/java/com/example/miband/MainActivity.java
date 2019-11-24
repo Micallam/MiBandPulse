@@ -5,6 +5,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -17,7 +18,6 @@ import android.view.View;
 import android.widget.Button;
 
 import com.example.miband.Activities.DiscoveryActivity;
-import com.example.miband.Device.MiBandService;
 import com.example.miband.Device.MiBandSupport;
 
 public class MainActivity extends AppCompatActivity {
@@ -25,8 +25,9 @@ public class MainActivity extends AppCompatActivity {
     public static final String TAG = "MiBand: MainActivity";
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
 
+    @SuppressLint("StaticFieldLeak")
     private static MainActivity context;
-    private static MiBandService miBandService;
+    @SuppressLint("StaticFieldLeak")
     private static MiBandSupport miBandSupport;
 
     BluetoothAdapter bluetoothAdapter;
@@ -126,16 +127,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public static boolean isRunningLollipopOrLater() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP;
-    }
-
     public static Context getContext() {
         return context;
-    }
-
-    public static MiBandService getMiBandService(){
-        return miBandService;
     }
 
     public static void setMiBandSupport(MiBandSupport miBandSupport) {

@@ -6,7 +6,6 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
@@ -23,6 +22,7 @@ import com.example.miband.Bluetooth.Actions.BtLEAction;
 import com.example.miband.Device.MiBandDevice;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -38,7 +38,6 @@ public class BluetoothQueue {
     private BluetoothGatt mBluetoothGatt;
 
     private final BlockingQueue<Transaction> mTransactions = new LinkedBlockingQueue<>();
-    private volatile boolean mDisposed;
     private volatile boolean mCrashed;
     private volatile boolean mAbortTransaction;
 
@@ -48,91 +47,88 @@ public class BluetoothQueue {
     private BluetoothGattCharacteristic mWaitCharacteristic;
     private final InternalGattCallback internalGattCallback;
 
-
-    private Thread dispatchThread = new Thread("GATT Dispatcher") {
-
-        @Override
-        public void run() {
-            Log.d(BluetoothQueue.TAG, "Queue Dispatch Thread started.");
-
-            while (!mDisposed && !mCrashed) {
-                try {
-                    Transaction qTransaction = mTransactions.take();
-
-                    if (!mDevice.isConnected()) {
-                        Log.d(BluetoothQueue.TAG, "not connected, waiting for connection...");
-                        // TODO: request connection and initialization from the outside and wait until finished
-                        internalGattCallback.reset();
-
-                        // wait until the connection succeeds before running the actions
-                        // Note that no automatic connection is performed. This has to be triggered
-                        // on the outside typically by the DeviceSupport. The reason is that
-                        // devices have different kinds of initializations and this class has no
-                        // idea about them.
-                        mConnectionLatch = new CountDownLatch(1);
-                        mConnectionLatch.await();
-                        mConnectionLatch = null;
-                    }
-
-                    if(qTransaction != null) {
-                        Transaction transaction = qTransaction;
-                        internalGattCallback.setTransactionGattCallback(transaction.getGattCallback());
-                        mAbortTransaction = false;
-                        // Run all actions of the transaction until one doesn't succeed
-                        for (BtLEAction action : transaction.getActions()) {
-                            if (mAbortTransaction) { // got disconnected
-                                Log.d(BluetoothQueue.TAG, "Aborting running transaction");
-                                break;
-                            }
-                            mWaitCharacteristic = action.getCharacteristic();
-                            mWaitForActionResultLatch = new CountDownLatch(1);
-
-                            Log.d(BluetoothQueue.TAG, "About to run action: " + action);
-
-                            if (action instanceof AbstractGattListenerWriteAction) {
-                                // this special action overwrites the transaction gatt listener (if any), it must
-                                // always be the last action in the transaction
-                                internalGattCallback.setTransactionGattCallback(((AbstractGattListenerWriteAction) action).getGattCallback());
-                            }
-
-                            if (action.run(mBluetoothGatt)) {
-                                // check again, maybe due to some condition, action did not need to write, so we can't wait
-                                boolean waitForResult = action.expectsResult();
-                                if (waitForResult) {
-                                    mWaitForActionResultLatch.await();
-                                    mWaitForActionResultLatch = null;
-                                    if (mAbortTransaction) {
-                                        break;
-                                    }
-                                }
-                            } else {
-                                Log.d(BluetoothQueue.TAG, "Action returned false: " + action);
-                                break; // abort the transaction
-                            }
-                        }
-                    }
-                } catch (InterruptedException ignored) {
-                    mConnectionLatch = null;
-                    Log.d(BluetoothQueue.TAG, "Thread interrupted");
-                } catch (Throwable ex) {
-                    Log.d(BluetoothQueue.TAG, "Queue Dispatch Thread died: " + ex.getMessage(), ex);
-                    mCrashed = true;
-                    mConnectionLatch = null;
-                } finally {
-                    mWaitForActionResultLatch = null;
-                    mWaitCharacteristic = null;
-                }
-            }
-            Log.d(BluetoothQueue.TAG, "Queue Dispatch Thread terminated.");
-        }
-    };
-
     public BluetoothQueue(BluetoothAdapter bluetoothAdapter, MiBandDevice device, BluetoothGattCallback externalGattCallback, Context context) {
         mBluetoothAdapter = bluetoothAdapter;
         mDevice = device;
         internalGattCallback = new InternalGattCallback(externalGattCallback);
         mContext = context;
 
+        // Run all actions of the transaction until one doesn't succeed
+        // got disconnected
+        // this special action overwrites the transaction gatt listener (if any), it must
+        // always be the last action in the transaction
+        // check again, maybe due to some condition, action did not need to write, so we can't wait
+        // abort the transaction
+        Thread dispatchThread = new Thread("GATT Dispatcher") {
+
+            @Override
+            public void run() {
+                Log.d(BluetoothQueue.TAG, "Queue Dispatch Thread started.");
+
+                while (!mCrashed) {
+                    try {
+                        Transaction qTransaction = mTransactions.take();
+
+                        if (!mDevice.isConnected()) {
+                            Log.d(BluetoothQueue.TAG, "not connected, waiting for connection...");
+                            internalGattCallback.reset();
+
+                            mConnectionLatch = new CountDownLatch(1);
+                            mConnectionLatch.await();
+                            mConnectionLatch = null;
+                        }
+
+                        if (qTransaction != null) {
+                            internalGattCallback.setTransactionGattCallback(qTransaction.getGattCallback());
+                            mAbortTransaction = false;
+                            // Run all actions of the transaction until one doesn't succeed
+                            for (BtLEAction action : qTransaction.getActions()) {
+                                if (mAbortTransaction) { // got disconnected
+                                    Log.d(BluetoothQueue.TAG, "Aborting running transaction");
+                                    break;
+                                }
+                                mWaitCharacteristic = action.getCharacteristic();
+                                mWaitForActionResultLatch = new CountDownLatch(1);
+
+                                Log.d(BluetoothQueue.TAG, "About to run action: " + action);
+
+                                if (action instanceof AbstractGattListenerWriteAction) {
+                                    // this special action overwrites the transaction gatt listener (if any), it must
+                                    // always be the last action in the transaction
+                                    internalGattCallback.setTransactionGattCallback(((AbstractGattListenerWriteAction) action).getGattCallback());
+                                }
+
+                                if (action.run(mBluetoothGatt)) {
+                                    // check again, maybe due to some condition, action did not need to write, so we can't wait
+                                    boolean waitForResult = action.expectsResult();
+                                    if (waitForResult) {
+                                        mWaitForActionResultLatch.await();
+                                        mWaitForActionResultLatch = null;
+                                        if (mAbortTransaction) {
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    Log.d(BluetoothQueue.TAG, "Action returned false: " + action);
+                                    break; // abort the transaction
+                                }
+                            }
+                        }
+                    } catch (InterruptedException ignored) {
+                        mConnectionLatch = null;
+                        Log.d(BluetoothQueue.TAG, "Thread interrupted");
+                    } catch (Throwable ex) {
+                        Log.d(BluetoothQueue.TAG, "Queue Dispatch Thread died: " + ex.getMessage(), ex);
+                        mCrashed = true;
+                        mConnectionLatch = null;
+                    } finally {
+                        mWaitForActionResultLatch = null;
+                        mWaitCharacteristic = null;
+                    }
+                }
+                Log.d(BluetoothQueue.TAG, "Queue Dispatch Thread terminated.");
+            }
+        };
         dispatchThread.start();
     }
 
@@ -166,47 +162,31 @@ public class BluetoothQueue {
         return result;
     }
 
-    public void add(Transaction transaction) {
+    void add(Transaction transaction) {
         Log.d(BluetoothQueue.TAG, "about to add: " + transaction);
-        if (!transaction.isEmpty()) {
+        if (transaction.hasElements()) {
             mTransactions.add(transaction);
         }
     }
 
     public void insert(Transaction transaction) {
         Log.d(BluetoothQueue.TAG, "about to insert: " + transaction);
-        if (!transaction.isEmpty()) {
+        if (transaction.hasElements()) {
             List<Transaction> tail = new ArrayList<>(mTransactions.size() + 2);
-            //mTransactions.drainTo(tail);
-            for(Transaction t : mTransactions) {
-                tail.add(t);
-            }
+
+            tail.addAll(mTransactions);
             mTransactions.clear();
             mTransactions.add(transaction);
             mTransactions.addAll(tail);
         }
     }
 
-    public void clear() {
-        mTransactions.clear();
-    }
-
-    public void dispose() {
-        if (mDisposed) {
-            return;
-        }
-        mDisposed = true;
-        disconnect();
-        dispatchThread.interrupt();
-        dispatchThread = null;
-    }
-
     private boolean checkCorrectGattInstance(BluetoothGatt gatt, String where) {
         if (gatt != mBluetoothGatt && mBluetoothGatt != null) {
             Log.d(BluetoothQueue.TAG, "Ignoring event from wrong BluetoothGatt instance: " + where + "; " + gatt);
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
     private void setDeviceConnectionState(MiBandDevice.State newState) {
@@ -231,7 +211,7 @@ public class BluetoothQueue {
         return false;
     }
 
-    public void disconnect() {
+    private void disconnect() {
         synchronized (mGattMonitor) {
             Log.d(BluetoothQueue.TAG, "disconnect()");
             BluetoothGatt gatt = mBluetoothGatt;
@@ -279,11 +259,11 @@ public class BluetoothQueue {
         BluetoothGattCallback mTransactionGattCallback;
         private final BluetoothGattCallback mExternalGattCallback;
 
-        public InternalGattCallback(BluetoothGattCallback externalGattCallback) {
+        InternalGattCallback(BluetoothGattCallback externalGattCallback) {
             mExternalGattCallback = externalGattCallback;
         }
 
-        public void setTransactionGattCallback(@Nullable BluetoothGattCallback callback) {
+        void setTransactionGattCallback(@Nullable BluetoothGattCallback callback) {
             mTransactionGattCallback = callback;
         }
 
@@ -304,7 +284,7 @@ public class BluetoothQueue {
                 }
             }
 
-            if (!checkCorrectGattInstance(gatt, "connection state event")) {
+            if (checkCorrectGattInstance(gatt, "connection state event")) {
                 return;
             }
 
@@ -348,7 +328,7 @@ public class BluetoothQueue {
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             Log.d(BluetoothQueue.TAG, "On services discovered...");
-            if (!checkCorrectGattInstance(gatt, "services discovered: " + getStatusString(status))) {
+            if (checkCorrectGattInstance(gatt, "services discovered: " + getStatusString(status))) {
                 return;
             }
 
@@ -365,7 +345,7 @@ public class BluetoothQueue {
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             Log.d(BluetoothQueue.TAG, "characteristic write: " + characteristic.getUuid() + getStatusString(status));
-            if (!checkCorrectGattInstance(gatt, "characteristic write")) {
+            if (checkCorrectGattInstance(gatt, "characteristic write")) {
                 return;
             }
             if (getCallbackToUse() != null) {
@@ -379,7 +359,7 @@ public class BluetoothQueue {
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
             Log.d(BluetoothQueue.TAG, "characteristic read: " + characteristic.getUuid() + getStatusString(status));
-            if (!checkCorrectGattInstance(gatt, "characteristic read")) {
+            if (checkCorrectGattInstance(gatt, "characteristic read")) {
                 return;
             }
             if (getCallbackToUse() != null) {
@@ -395,7 +375,7 @@ public class BluetoothQueue {
         @Override
         public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             Log.d(BluetoothQueue.TAG, "descriptor read: " + descriptor.getUuid() + getStatusString(status));
-            if (!checkCorrectGattInstance(gatt, "descriptor read")) {
+            if (checkCorrectGattInstance(gatt, "descriptor read")) {
                 return;
             }
             if (getCallbackToUse() != null) {
@@ -411,7 +391,7 @@ public class BluetoothQueue {
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
             Log.d(BluetoothQueue.TAG, "descriptor write: " + descriptor.getUuid() + getStatusString(status));
-            if (!checkCorrectGattInstance(gatt, "descriptor write")) {
+            if (checkCorrectGattInstance(gatt, "descriptor write")) {
                 return;
             }
             if (getCallbackToUse() != null) {
@@ -428,9 +408,9 @@ public class BluetoothQueue {
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
 
-            Log.d(BluetoothQueue.TAG, "characteristic changed: " + characteristic.getUuid() + " value: " + characteristic.getValue());
+            Log.d(BluetoothQueue.TAG, "characteristic changed: " + characteristic.getUuid() + " value: " + Arrays.toString(characteristic.getValue()));
 
-            if (!checkCorrectGattInstance(gatt, "characteristic changed")) {
+            if (checkCorrectGattInstance(gatt, "characteristic changed")) {
                 return;
             }
             if (getCallbackToUse() != null) {
@@ -447,7 +427,7 @@ public class BluetoothQueue {
         @Override
         public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
             Log.d(BluetoothQueue.TAG, "remote rssi: " + rssi + getStatusString(status));
-            if (!checkCorrectGattInstance(gatt, "remote rssi")) {
+            if (checkCorrectGattInstance(gatt, "remote rssi")) {
                 return;
             }
             if (getCallbackToUse() != null) {
@@ -481,7 +461,7 @@ public class BluetoothQueue {
             return status == BluetoothGatt.GATT_SUCCESS ? " (success)" : " (failed: " + status + ")";
         }
 
-        public void reset() {
+        void reset() {
             Log.d(BluetoothQueue.TAG, "internal gatt callback set to null");
 
             mTransactionGattCallback = null;

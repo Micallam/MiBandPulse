@@ -4,17 +4,10 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 
-import com.example.miband.Bluetooth.BluetoothQueue;
-
-import java.util.Objects;
-
 public abstract class AbstractGattListenerWriteAction extends WriteAction {
-    BluetoothQueue queue;
 
-    public AbstractGattListenerWriteAction(BluetoothQueue queue, BluetoothGattCharacteristic characteristic, byte[] value) {
+    public AbstractGattListenerWriteAction(BluetoothGattCharacteristic characteristic, byte[] value) {
         super(characteristic, value);
-        this.queue = queue;
-        Objects.requireNonNull(queue, "queue must not be null");
     }
 
     public BluetoothGattCallback getGattCallback() {
@@ -26,5 +19,5 @@ public abstract class AbstractGattListenerWriteAction extends WriteAction {
         };
     }
 
-    protected abstract boolean onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic);
+    abstract void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic);
 }

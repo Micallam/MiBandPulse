@@ -8,7 +8,7 @@ import android.util.Log;
 public class NotifyAction extends BtLEAction {
 
     public static String TAG = "MiBand: NotifyAction";
-    protected final boolean enableFlag;
+    private final boolean enableFlag;
     private boolean hasWrittenDescriptor = true;
 
     public NotifyAction(BluetoothGattCharacteristic characteristic, boolean enable) {

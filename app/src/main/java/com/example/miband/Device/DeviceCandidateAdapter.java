@@ -1,5 +1,6 @@
 package com.example.miband.Device;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -7,6 +8,8 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
 
 import com.example.miband.R;
 
@@ -22,8 +25,10 @@ public class DeviceCandidateAdapter extends ArrayAdapter<MiBandDevice> {
         this.context = context;
     }
 
+    @SuppressLint("SetTextI18n")
+    @NonNull
     @Override
-    public View getView(int position, View view, ViewGroup parent) {
+    public View getView(int position, View view, @NonNull ViewGroup parent) {
         MiBandDevice device = getItem(position);
 
         if (view == null) {
@@ -32,10 +37,11 @@ public class DeviceCandidateAdapter extends ArrayAdapter<MiBandDevice> {
 
             view = inflater.inflate(R.layout.item_with_details, parent, false);
         }
-        ImageView deviceImageView = (ImageView) view.findViewById(R.id.item_image);
-        TextView deviceNameLabel = (TextView) view.findViewById(R.id.item_name);
-        TextView deviceAddressLabel = (TextView) view.findViewById(R.id.item_details);
+        ImageView deviceImageView = view.findViewById(R.id.item_image);
+        TextView deviceNameLabel = view.findViewById(R.id.item_name);
+        TextView deviceAddressLabel = view.findViewById(R.id.item_details);
 
+        assert device != null;
         String name = formatDeviceCandidate(device);
         deviceNameLabel.setText(name);
         deviceAddressLabel.setText(device.getAddress() + " | " + device.getName());

@@ -1,33 +1,23 @@
 package com.example.miband.Device;
 
-import android.annotation.TargetApi;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.le.ScanFilter;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Parcel;
-import android.os.ParcelUuid;
 import android.os.Parcelable;
-import android.util.Log;
 
-import androidx.annotation.NonNull;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import java.util.Collection;
-import java.util.Collections;
 
 public class MiBandDevice implements Parcelable {
     public static final String TAG = "MiBand: MiBandDevice";
     public static final String ACTION_DEVICE_CHANGED = "com.example.mibanddevice.action.device_changed";
     public static final String EXTRA_DEVICE_CANDIDATE = "com.example.mibanddevice.EXTRA_DEVICE_CANDIDATE";
 
-    public static final short RSSI_UNKNOWN = 0;
     public static final String EXTRA_DEVICE = "device";
     private String mName;
     private final String mAddress;
     private State mState = State.NOT_CONNECTED;
-    private String mBusyTask;
 
     private BluetoothDevice mBluetoothDevice;
 
@@ -41,47 +31,12 @@ public class MiBandDevice implements Parcelable {
         return mName;
     }
 
-    public void setName(String name) {
-        mName = name;
-    }
-
     public String getAddress(){
         return mAddress;
     }
 
     public BluetoothDevice getDevice(){
         return mBluetoothDevice;
-    }
-    @NonNull
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    public static Collection<? extends ScanFilter> createBLEScanFilters() {
-        ParcelUuid mi2Service = new ParcelUuid(MiBandService.UUID_SERVICE_MIBAND2_SERVICE);
-        ScanFilter filter = new ScanFilter.Builder().setServiceUuid(mi2Service).build();
-        return Collections.singletonList(filter);
-    }
-
-    public void setBusyTask(String task) {
-        if (task == null) {
-            throw new IllegalArgumentException("busy task must not be null");
-        }
-        if (mBusyTask != null) {
-            Log.d(MiBandDevice.TAG, "Attempt to mark device as busy with: " + task + ", but is already busy with: " + mBusyTask);
-        }
-        Log.d(MiBandDevice.TAG, "Mark device as busy: " + task);
-        mBusyTask = task;
-    }
-
-    public void unsetBusyTask() {
-        if (mBusyTask == null) {
-            Log.d(MiBandDevice.TAG, "Attempt to mark device as not busy anymore, but was not busy before.");
-            return;
-        }
-        Log.d(MiBandDevice.TAG, "Mark device as NOT busy anymore: " + mBusyTask);
-        mBusyTask = null;
-    }
-
-    public boolean isBusy() {
-        return mBusyTask != null;
     }
 
     public boolean isInitialized() {
@@ -106,7 +61,6 @@ public class MiBandDevice implements Parcelable {
         CONNECTING,
         CONNECTED,
         INITIALIZING,
-        AUTHENTICATION_REQUIRED,
         AUTHENTICATING,
         INITIALIZED,
     }

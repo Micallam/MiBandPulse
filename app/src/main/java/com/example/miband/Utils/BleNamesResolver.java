@@ -5,11 +5,11 @@ import android.util.SparseArray;
 import java.util.HashMap;
 
 public class BleNamesResolver {
-    private static HashMap<String, String> mServices = new HashMap<String, String>();
-    private static HashMap<String, String> mCharacteristics = new HashMap<String, String>();
-    private static SparseArray<String> mValueFormats = new SparseArray<String>();
-    private static SparseArray<String> mAppearance = new SparseArray<String>();
-    private static SparseArray<String> mHeartRateSensorLocation = new SparseArray<String>();
+    private static HashMap<String, String> mServices = new HashMap<>();
+    private static HashMap<String, String> mCharacteristics = new HashMap<>();
+    private static SparseArray<String> mValueFormats = new SparseArray<>();
+    private static SparseArray<String> mAppearance = new SparseArray<>();
+    private static SparseArray<String> mHeartRateSensorLocation = new SparseArray<>();
 
     static public String resolveServiceName(final String uuid)
     {
@@ -18,46 +18,11 @@ public class BleNamesResolver {
         return result;
     }
 
-    static public String resolveValueTypeDescription(final int format)
-    {
-        Integer tmp = Integer.valueOf(format);
-        return mValueFormats.get(tmp, "Unknown Format");
-    }
-
     static public String resolveCharacteristicName(final String uuid)
     {
         String result = mCharacteristics.get(uuid);
         if(result == null) result = "Unknown Characteristic";
         return result;
-    }
-
-    static public String resolveUuid(final String uuid) {
-        String result = mServices.get(uuid);
-        if(result != null) return "Service: " + result;
-
-        result = mCharacteristics.get(uuid);
-        if(result != null) return "Characteristic: " + result;
-
-        result = "Unknown UUID";
-        return result;
-    }
-
-    static public String resolveAppearance(int key) {
-        Integer tmp = Integer.valueOf(key);
-        return mAppearance.get(tmp, "Unknown Appearance");
-    }
-
-    static public String resolveHeartRateSensorLocation(int key) {
-        Integer tmp = Integer.valueOf(key);
-        return mHeartRateSensorLocation.get(tmp, "Other");
-    }
-
-    static public boolean isService(final String uuid) {
-        return mServices.containsKey(uuid);
-    }
-
-    static public boolean isCharacteristic(final String uuid) {
-        return mCharacteristics.containsKey(uuid);
     }
 
     static {
@@ -172,35 +137,35 @@ public class BleNamesResolver {
 
         mCharacteristics.put("14702856-620a-3973-7c78-9cfff0876abd", "(Propr: HPLUS Control)");
         mCharacteristics.put("14702853-620a-3973-7c78-9cfff0876abd", "(Propr: HPLUS Measurements)");
-        mValueFormats.put(Integer.valueOf(52), "32bit float");
-        mValueFormats.put(Integer.valueOf(50), "16bit float");
-        mValueFormats.put(Integer.valueOf(34), "16bit signed int");
-        mValueFormats.put(Integer.valueOf(36), "32bit signed int");
-        mValueFormats.put(Integer.valueOf(33), "8bit signed int");
-        mValueFormats.put(Integer.valueOf(18), "16bit unsigned int");
-        mValueFormats.put(Integer.valueOf(20), "32bit unsigned int");
-        mValueFormats.put(Integer.valueOf(17), "8bit unsigned int");
+        mValueFormats.put(52, "32bit float");
+        mValueFormats.put(50, "16bit float");
+        mValueFormats.put(34, "16bit signed int");
+        mValueFormats.put(36, "32bit signed int");
+        mValueFormats.put(33, "8bit signed int");
+        mValueFormats.put(18, "16bit unsigned int");
+        mValueFormats.put(20, "32bit unsigned int");
+        mValueFormats.put(17, "8bit unsigned int");
 
         // lets add also couple appearance string description
         // https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.gap.appearance.xml
-        mAppearance.put(Integer.valueOf(833), "Heart Rate Sensor: Belt");
-        mAppearance.put(Integer.valueOf(832), "Generic Heart Rate Sensor");
-        mAppearance.put(Integer.valueOf(0), "Unknown");
-        mAppearance.put(Integer.valueOf(64), "Generic Phone");
-        mAppearance.put(Integer.valueOf(1157), "Cycling: Speed and Cadence Sensor");
-        mAppearance.put(Integer.valueOf(1152), "General Cycling");
-        mAppearance.put(Integer.valueOf(1153), "Cycling Computer");
-        mAppearance.put(Integer.valueOf(1154), "Cycling: Speed Sensor");
-        mAppearance.put(Integer.valueOf(1155), "Cycling: Cadence Sensor");
-        mAppearance.put(Integer.valueOf(1156), "Cycling: Speed and Cadence Sensor");
-        mAppearance.put(Integer.valueOf(1157), "Cycling: Power Sensor");
+        mAppearance.put(833, "Heart Rate Sensor: Belt");
+        mAppearance.put(832, "Generic Heart Rate Sensor");
+        mAppearance.put(0, "Unknown");
+        mAppearance.put(64, "Generic Phone");
+        mAppearance.put(1157, "Cycling: Speed and Cadence Sensor");
+        mAppearance.put(1152, "General Cycling");
+        mAppearance.put(1153, "Cycling Computer");
+        mAppearance.put(1154, "Cycling: Speed Sensor");
+        mAppearance.put(1155, "Cycling: Cadence Sensor");
+        mAppearance.put(1156, "Cycling: Speed and Cadence Sensor");
+        mAppearance.put(1157, "Cycling: Power Sensor");
 
-        mHeartRateSensorLocation.put(Integer.valueOf(0), "Other");
-        mHeartRateSensorLocation.put(Integer.valueOf(1), "Chest");
-        mHeartRateSensorLocation.put(Integer.valueOf(2), "Wrist");
-        mHeartRateSensorLocation.put(Integer.valueOf(3), "Finger");
-        mHeartRateSensorLocation.put(Integer.valueOf(4), "Hand");
-        mHeartRateSensorLocation.put(Integer.valueOf(5), "Ear Lobe");
-        mHeartRateSensorLocation.put(Integer.valueOf(6), "Foot");
+        mHeartRateSensorLocation.put(0, "Other");
+        mHeartRateSensorLocation.put(1, "Chest");
+        mHeartRateSensorLocation.put(2, "Wrist");
+        mHeartRateSensorLocation.put(3, "Finger");
+        mHeartRateSensorLocation.put(4, "Hand");
+        mHeartRateSensorLocation.put(5, "Ear Lobe");
+        mHeartRateSensorLocation.put(6, "Foot");
     }
 }

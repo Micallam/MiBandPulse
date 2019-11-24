@@ -8,9 +8,7 @@ import androidx.annotation.Nullable;
 
 import com.example.miband.Bluetooth.Actions.BtLEAction;
 import com.example.miband.Bluetooth.Actions.NotifyAction;
-import com.example.miband.Bluetooth.Actions.ReadAction;
 import com.example.miband.Bluetooth.Actions.WriteAction;
-import com.example.miband.Device.MiBandSupport;
 
 public class TransactionBuilder {
 
@@ -18,62 +16,39 @@ public class TransactionBuilder {
     private final Transaction mTransaction;
     private boolean mQueued;
 
-    public TransactionBuilder(String taskName) {
-        mTransaction = new Transaction(taskName);
+    public TransactionBuilder() {
+        mTransaction = new Transaction();
     }
 
-    public TransactionBuilder read(BluetoothGattCharacteristic characteristic) {
-        if (characteristic == null) {
-            Log.d(TransactionBuilder.TAG, "Unable to read characteristic: null");
-            return this;
-        }
-        ReadAction action = new ReadAction(characteristic);
-        return add(action);
-    }
-
-    public TransactionBuilder write(BluetoothGattCharacteristic characteristic, byte[] data) {
+    public void write(BluetoothGattCharacteristic characteristic, byte[] data) {
         if (characteristic == null) {
             Log.d(TransactionBuilder.TAG, "Unable to write characteristic: null");
-            return this;
+            return;
         }
         WriteAction action = new WriteAction(characteristic, data);
-        return add(action);
+        add(action);
     }
 
-    public TransactionBuilder notify(BluetoothGattCharacteristic characteristic, boolean enable) {
+    public void notify(BluetoothGattCharacteristic characteristic, boolean enable) {
         if (characteristic == null) {
             Log.d(TransactionBuilder.TAG, "Unable to notify characteristic: null");
-            return this;
+            return;
         }
         NotifyAction action = createNotifyAction(characteristic, enable);
-        return add(action);
+        add(action);
     }
 
-    protected NotifyAction createNotifyAction(BluetoothGattCharacteristic characteristic, boolean enable) {
+    private NotifyAction createNotifyAction(BluetoothGattCharacteristic characteristic, boolean enable) {
         return new NotifyAction(characteristic, enable);
     }
 
-    public TransactionBuilder add(BtLEAction action) {
+    public void add(BtLEAction action) {
         mTransaction.add(action);
-        return this;
     }
 
-    /**
-     * Sets a GattCallback instance that will be called when the transaction is executed,
-     * resulting in GattCallback events.
-     *
-     * @param callback the callback to set, may be null
-     */
-    public void setGattCallback(@Nullable BluetoothGattCallback callback) {
+    void setGattCallback(@Nullable BluetoothGattCallback callback) {
         mTransaction.setGattCallback(callback);
     }
-
-    public
-    @Nullable
-    BluetoothGattCallback getGattCallback() {
-        return mTransaction.getGattCallback();
-    }
-
 
     public void queue(BluetoothQueue queue) {
         if (mQueued) {
@@ -85,9 +60,5 @@ public class TransactionBuilder {
 
     public Transaction getTransaction() {
         return mTransaction;
-    }
-
-    public String getTaskName() {
-        return mTransaction.getTaskName();
     }
 }

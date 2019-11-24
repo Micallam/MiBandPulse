@@ -6,29 +6,12 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.ParcelUuid;
-import android.os.Parcelable;
 import android.widget.Toast;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.example.miband.MainActivity;
 
 public class AndroidUtils {
-    public static ParcelUuid[] toParcelUuids(Parcelable[] uuids) {
-        if (uuids == null) {
-            return null;
-        }
-        ParcelUuid[] uuids2 = new ParcelUuid[uuids.length];
-        System.arraycopy(uuids, 0, uuids2, 0, uuids.length);
-        return uuids2;
-    }
-
-    public static String ensureNotNull(String message) {
-        if (message != null) {
-            return message;
-        }
-        return "";
-    }
 
     public static void toast(final Context context, final String message, final int displayTime) {
         Looper mainLooper = Looper.getMainLooper();
@@ -69,21 +52,17 @@ public class AndroidUtils {
         return MainActivity.getContext().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE);
     }
 
-    public static boolean safeUnregisterBroadcastReceiver(LocalBroadcastManager manager, BroadcastReceiver receiver) {
+    public static void safeUnregisterBroadcastReceiver(LocalBroadcastManager manager, BroadcastReceiver receiver) {
         try {
             manager.unregisterReceiver(receiver);
-            return true;
-        } catch (IllegalArgumentException ex) {
-            return false;
+        } catch (IllegalArgumentException ignored) {
         }
     }
 
-    public static boolean safeUnregisterBroadcastReceiver(Context context, BroadcastReceiver receiver) {
+    public static void safeUnregisterBroadcastReceiver(Context context, BroadcastReceiver receiver) {
         try {
             context.unregisterReceiver(receiver);
-            return true;
-        } catch (IllegalArgumentException ex) {
-            return false;
+        } catch (IllegalArgumentException ignored) {
         }
     }
 }

@@ -4,37 +4,26 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentActivity;
 
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothClass;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-import com.example.miband.Bluetooth.Actions.SetDeviceStateAction;
-import com.example.miband.Bluetooth.HeartrateGattCallback;
-import com.example.miband.Bluetooth.TransactionBuilder;
+import com.example.miband.Bluetooth.HeartRateGattCallback;
 import com.example.miband.Device.MiBandDevice;
-import com.example.miband.Device.MiBandSupport;
 import com.example.miband.MainActivity;
 import com.example.miband.R;
 import com.example.miband.Utils.AndroidUtils;
 
-import java.io.IOException;
-import java.util.Calendar;
-import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class DeviceControlActivity extends AppCompatActivity {
 
-    HeartrateGattCallback heartrateGattCallback;
+    HeartRateGattCallback heartrateGattCallback;
     ScheduledExecutorService service;
 
     Button clickBtn;
@@ -57,7 +46,7 @@ public class DeviceControlActivity extends AppCompatActivity {
             public void onClick(View v) {
                 AndroidUtils.toast(DeviceControlActivity.this, "Fetching started...", Toast.LENGTH_SHORT);
 
-                heartrateGattCallback = new HeartrateGattCallback(MainActivity.getMiBandSupport());
+                heartrateGattCallback = new HeartRateGattCallback(MainActivity.getMiBandSupport());
                 service = Executors.newSingleThreadScheduledExecutor();
                 service.scheduleAtFixedRate(new Runnable() {
                     @Override

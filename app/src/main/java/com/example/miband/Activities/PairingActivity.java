@@ -1,6 +1,5 @@
 package com.example.miband.Activities;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -13,6 +12,7 @@ import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
@@ -40,7 +40,7 @@ public class PairingActivity extends AppCompatActivity {
                 Log.d(PairingActivity.TAG, "pairing activity: device changed: " + device.getName() + " " + device.getAddress() + " state: " + device.getState());
                 if (PairingActivity.this.device.getAddress().equals(device.getAddress())) {
                     if (device.isInitialized()) {
-                        pairingFinished(true, PairingActivity.this.device);
+                        pairingFinished(true);
                     } else if (device.isConnecting() || device.isInitializing()) {
                         Log.d(PairingActivity.TAG, "still connecting/initializing device...");
                     }
@@ -69,7 +69,7 @@ public class PairingActivity extends AppCompatActivity {
                         attemptToConnect();
                     } else {
                         Log.d(PairingActivity.TAG, "Unknown bond state for device " + device.getAddress() + ": " + bondState);
-                        pairingFinished(false, PairingActivity.this.device);
+                        pairingFinished(false);
                     }
                 }
             }
@@ -93,7 +93,8 @@ public class PairingActivity extends AppCompatActivity {
 
         message = findViewById(R.id.miband_pair_message);
         Intent intent = getIntent();
-        device = intent.getParcelableExtra(MiBandDevice.EXTRA_DEVICE_CANDIDATE);
+        Bundle bundle = intent.getBundleExtra("bundle");
+        device = bundle.getParcelable(MiBandDevice.EXTRA_DEVICE_CANDIDATE);
         if (device == null && savedInstanceState != null) {
             device = savedInstanceState.getParcelable(STATE_DEVICE_CANDIDATE);
         }
@@ -104,12 +105,11 @@ public class PairingActivity extends AppCompatActivity {
             return;
         }
 
-        // already valid user info available, use that and pair
         startPairing();
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putParcelable(STATE_DEVICE_CANDIDATE, device);
     }
@@ -142,7 +142,7 @@ public class PairingActivity extends AppCompatActivity {
 
     private void startPairing() {
         isPairing = true;
-        message.setText("Pairing with " + device.getName() + " " + device.getAddress() + "…");
+        message.setText(getString(R.string.pairing_with, device.getName(), device.getAddress()));
 
         IntentFilter filter = new IntentFilter(MiBandDevice.ACTION_DEVICE_CHANGED);
         LocalBroadcastManager.getInstance(this).registerReceiver(mPairingReceiver, filter);
@@ -164,7 +164,7 @@ public class PairingActivity extends AppCompatActivity {
         return true;
     }
 
-    private void pairingFinished(boolean pairedSuccessfully, MiBandDevice candidate) {
+    private void pairingFinished(boolean pairedSuccessfully) {
         Log.d(PairingActivity.TAG, "pairingFinished: " + pairedSuccessfully);
         if (!isPairing) {
             return;
@@ -176,10 +176,6 @@ public class PairingActivity extends AppCompatActivity {
 
         if (pairedSuccessfully) {
             Intent intent = new Intent(PairingActivity.this, DeviceControlActivity.class);
-
-            if (device != null){
-                Log.d(PairingActivity.TAG, "tu jest git");
-            }
 
             Bundle bundle = new Bundle();
             bundle.putParcelable(MiBandDevice.EXTRA_DEVICE, device);

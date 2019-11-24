@@ -15,14 +15,10 @@ import androidx.annotation.RequiresApi;
 
 import com.example.miband.Bluetooth.Actions.SetDeviceStateAction;
 import com.example.miband.Bluetooth.BluetoothQueue;
-import com.example.miband.Bluetooth.Gatt.GattCharacteristic;
-import com.example.miband.Bluetooth.Gatt.GattService;
 import com.example.miband.Bluetooth.TransactionBuilder;
 import com.example.miband.Utils.AndroidUtils;
 import com.example.miband.Utils.BleNamesResolver;
 import com.example.miband.Utils.CalendarUtils;
-
-import org.apache.commons.lang3.time.StopWatch;
 
 import java.io.IOException;
 import java.security.InvalidKeyException;
@@ -31,12 +27,9 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -47,55 +40,35 @@ import javax.crypto.spec.SecretKeySpec;
 public class MiBandSupport extends BluetoothGattCallback {
     public static String TAG = "MiBand: MiBandSupport";
 
-    BluetoothQueue mQueue;
-    MiBandDevice mDevice;
+    private BluetoothQueue mQueue;
+    private MiBandDevice mDevice;
 
     private Map<UUID, BluetoothGattCharacteristic> mAvailableCharacteristics;
-    private final Set<UUID> mSupportedServices = new HashSet<>(4);
 
-    public static final String BASE_UUID = "0000%s-0000-1000-8000-00805f9b34fb"; //this is common for all BTLE devices. see http://stackoverflow.com/questions/18699251/finding-out-android-bluetooth-le-gatt-profiles
     private final Object characteristicsMonitor = new Object();
 
     private BluetoothAdapter mBtAdapter;
     private Context mContext;
 
-    public MiBandSupport() {
-        addSupportedService(GattService.UUID_SERVICE_GENERIC_ACCESS);
-        addSupportedService(GattService.UUID_SERVICE_GENERIC_ATTRIBUTE);
-        addSupportedService(GattService.UUID_SERVICE_IMMEDIATE_ALERT);
-        addSupportedService(MiBandService.UUID_SERVICE_MIBAND_SERVICE);
-        addSupportedService(MiBandService.UUID_SERVICE_HEART_RATE);
-        addSupportedService(MiBandService.UUID_CHARACTERISTIC_NOTIFICATION);
-        addSupportedService(MiBandService.UUID_CHARACTERISTIC_LE_PARAMS);
-        addSupportedService(MiBandService.UUID_CHARACTERISTIC_DATE_TIME);
-        addSupportedService(MiBandService.UUID_CHARACTERISTIC_PAIR);
-    }
-
-    public void setContext(MiBandDevice device, BluetoothAdapter btAdapter, Context context) {
+    void setContext(MiBandDevice device, BluetoothAdapter btAdapter, Context context) {
         mDevice = device;
         mBtAdapter = btAdapter;
         mContext = context;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
-    public TransactionBuilder performInitialized(String taskName) throws IOException {
+    public TransactionBuilder performInitialized() throws IOException {
         if (!mDevice.isConnected()) {
             if (!connect()) {
                 throw new IOException("1: Unable to connect to device: " + getDevice());
             }
         }
-        if (!mDevice.isInitialized()) {
-            //TODO handle uninitialized state
 
-            /*TransactionBuilder builder = createTransactionBuilder("Initialize device");
-            builder.add(new CheckInitializedAction(gbDevice));
-            initializeDevice(builder).queue(getQueue());*/
-        }
-        return createTransactionBuilder(taskName);
+        return createTransactionBuilder();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
-    public boolean connect() {
+    boolean connect() {
         if (mQueue == null) {
             mQueue = new BluetoothQueue(getBluetoothAdapter(), getDevice(), this, getContext());
         }
@@ -103,28 +76,23 @@ public class MiBandSupport extends BluetoothGattCallback {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
-    public boolean connectFirstTime() {
+    void connectFirstTime() {
         for (int i = 0; i < 5; i++) {
             if (connect()) {
-                return true;
+                return;
             }
         }
-        return false;
     }
 
-    public void dispose() {
+    void dispose() {
         Log.d(MiBandSupport.TAG, "Dispose");
-        close();
-    }
-
-    private void close() {
     }
 
     private byte[] requestAuthNumber() {
         return new byte[]{MiBandService.AUTH_REQUEST_RANDOM_AUTH_NUMBER, MiBandService.AUTH_BYTE};
     }
 
-    public void performImmediately(TransactionBuilder builder) throws IOException {
+    private void performImmediately(TransactionBuilder builder) throws IOException {
         if (!mDevice.isConnected()) {
             throw new IOException("Not connected to device: " + getDevice());
         }
@@ -132,38 +100,28 @@ public class MiBandSupport extends BluetoothGattCallback {
     }
 
 
-    public byte[] getTimeBytes(Calendar calendar, TimeUnit precision) {
+    private byte[] getTimeBytes(Calendar calendar) {
         byte[] bytes;
-        if (precision == TimeUnit.MINUTES) {
-            bytes = CalendarUtils.shortCalendarToRawBytes(calendar);
-        } else if (precision == TimeUnit.SECONDS) {
-            bytes = CalendarUtils.calendarToRawBytes(calendar);
-        } else {
-            throw new IllegalArgumentException("Unsupported precision, only MINUTES and SECONDS are supported till now");
-        }
-        byte[] tail = new byte[] { 0, CalendarUtils.mapTimeZone(calendar.getTimeZone(), 1) };
-        // 0 = adjust reason bitflags? or DST offset?? , timezone
-//        byte[] tail = new byte[] { 0x2 }; // reason
-        byte[] all = CalendarUtils.join(bytes, tail);
-        return all;
+        bytes = CalendarUtils.calendarToRawBytes(calendar);
+        byte[] tail = new byte[] { 0, CalendarUtils.mapTimeZone(calendar.getTimeZone()) };
+
+        return CalendarUtils.join(bytes, tail);
     }
 
 
-    public MiBandSupport setCurrentTimeWithService(TransactionBuilder builder) {
+    private void setCurrentTimeWithService(TransactionBuilder builder) {
         GregorianCalendar now = new GregorianCalendar();
-        byte[] bytes = getTimeBytes(now, TimeUnit.SECONDS);
-        builder.write(getCharacteristic(GattCharacteristic.UUID_CHARACTERISTIC_CURRENT_TIME), bytes);
-        return this;
+        byte[] bytes = getTimeBytes(now);
+        builder.write(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_CURRENT_TIME), bytes);
     }
 
-    public MiBandSupport enableFurtherNotifications(TransactionBuilder builder, boolean enable) {
-        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_3_CONFIGURATION), enable);
-        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_6_BATTERY_INFO), enable);
-        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_DEVICEEVENT), enable);
-        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUDIO), enable);
-        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUDIODATA), enable);
+    private void enableFurtherNotifications(TransactionBuilder builder) {
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_3_CONFIGURATION), true);
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_6_BATTERY_INFO), true);
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_DEVICEEVENT), true);
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUDIO), true);
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUDIODATA), true);
 
-        return this;
     }
 
     public void onCharacteristicChanged(BluetoothGatt gatt,
@@ -176,7 +134,7 @@ public class MiBandSupport extends BluetoothGattCallback {
                 if (value[0] == MiBandService.AUTH_RESPONSE &&
                         value[1] == MiBandService.AUTH_SEND_KEY &&
                         value[2] == MiBandService.AUTH_SUCCESS) {
-                    TransactionBuilder builder = createTransactionBuilder("Sending the secret key to the device");
+                    TransactionBuilder builder = createTransactionBuilder();
                     builder.write(characteristic, requestAuthNumber());
                     performImmediately(builder);
                 } else if (value[0] == MiBandService.AUTH_RESPONSE &&
@@ -186,40 +144,25 @@ public class MiBandSupport extends BluetoothGattCallback {
                     byte[] responseValue = org.apache.commons.lang3.ArrayUtils.addAll(
                             new byte[]{(byte) (MiBandService.AUTH_SEND_ENCRYPTED_AUTH_NUMBER | MiBandService.CRYPT_FLAGS), MiBandService.AUTH_BYTE}, eValue);
 
-                    TransactionBuilder builder = createTransactionBuilder("Sending the encrypted random key to the device");
+                    TransactionBuilder builder = createTransactionBuilder();
                     builder.write(characteristic, responseValue);
                     setCurrentTimeWithService(builder);
                     performImmediately(builder);
                 } else if (value[0] == MiBandService.AUTH_RESPONSE &&
                         (value[1] & 0x0f) == MiBandService.AUTH_SEND_ENCRYPTED_AUTH_NUMBER &&
                         value[2] == MiBandService.AUTH_SUCCESS) {
-                    TransactionBuilder builder = createTransactionBuilder("Authenticated, now initialize phase 2");
+                    TransactionBuilder builder = createTransactionBuilder();
                     builder.add(new SetDeviceStateAction(getDevice(), MiBandDevice.State.INITIALIZING, getContext()));
-                    enableFurtherNotifications(builder, true);
-                    //phase2Initialize(builder);
-                    //phase3Initialize(builder);
+                    enableFurtherNotifications(builder);
                     setInitialized(builder);
                     performImmediately(builder);
                 }
             } catch (Exception e) {
                 AndroidUtils.toast(getContext(), "Error authenticating device", Toast.LENGTH_LONG);
             }
-            return;
-        }
-        else if (GattCharacteristic.UUID_CHARACTERISTIC_HEART_RATE_MEASUREMENT.equals(characteristicUUID)){
-            Log.d(MiBandSupport.TAG, "Heart rate characteristic captured");
-            handleHeartrate(characteristic.getValue());
         }
         else {
             Log.d(MiBandSupport.TAG, "Unhandled characteristic changed: " + characteristicUUID);
-        }
-    }
-
-    private void handleHeartrate(byte[] value) {
-        if (value.length == 2 && value[0] == 0) {
-            int hrValue = (value[1] & 0xff);
-
-            Log.d(MiBandSupport.TAG, "heart rate: " + hrValue);
         }
     }
 
@@ -230,15 +173,11 @@ public class MiBandSupport extends BluetoothGattCallback {
             Log.d(MiBandSupport.TAG, "Services discovered, but device state is already " + getDevice().getState() + " for device: " + getDevice() + ", so ignoring");
             return;
         }
-        initializeDevice(createTransactionBuilder("Initializing device")).queue(getQueue());
+        initializeDevice(createTransactionBuilder()).queue(getQueue());
     }
 
-    public TransactionBuilder createTransactionBuilder(String taskName) {
-        return new TransactionBuilder(taskName);
-    }
-
-    protected Set<UUID> getSupportedServices() {
-        return mSupportedServices;
+    private TransactionBuilder createTransactionBuilder() {
+        return new TransactionBuilder();
     }
 
     private void gattServicesDiscovered(List<BluetoothGattService> discoveredGattServices) {
@@ -247,35 +186,29 @@ public class MiBandSupport extends BluetoothGattCallback {
             return;
         }
 
-        //TODO Take a look. Probably there is some error with supported services
-        Set<UUID> supportedServices = getSupportedServices();
         Map<UUID, BluetoothGattCharacteristic> newCharacteristics = new HashMap<>();
         for (BluetoothGattService service : discoveredGattServices) {
-            //if (supportedServices.contains(service.getUuid())) {
-                Log.d(MiBandSupport.TAG, "discovered supported service: " + BleNamesResolver.resolveServiceName(service.getUuid().toString()) + ": " + service.getUuid());
-                List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
-                if (characteristics == null || characteristics.isEmpty()) {
-                    Log.d(MiBandSupport.TAG, "Supported LE service " + service.getUuid() + "did not return any characteristics");
-                    continue;
-                }
-                HashMap<UUID, BluetoothGattCharacteristic> intmAvailableCharacteristics = new HashMap<>(characteristics.size());
-                for (BluetoothGattCharacteristic characteristic : characteristics) {
-                    intmAvailableCharacteristics.put(characteristic.getUuid(), characteristic);
-                    Log.d(MiBandSupport.TAG, "    characteristic: " + BleNamesResolver.resolveCharacteristicName(characteristic.getUuid().toString()) + ": " + characteristic.getUuid());
-                }
-                newCharacteristics.putAll(intmAvailableCharacteristics);
+            Log.d(MiBandSupport.TAG, "discovered supported service: " + BleNamesResolver.resolveServiceName(service.getUuid().toString()) + ": " + service.getUuid());
+            List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+            if (characteristics == null || characteristics.isEmpty()) {
+                Log.d(MiBandSupport.TAG, "Supported LE service " + service.getUuid() + "did not return any characteristics");
+                continue;
+            }
+            HashMap<UUID, BluetoothGattCharacteristic> intmAvailableCharacteristics = new HashMap<>(characteristics.size());
+            for (BluetoothGattCharacteristic characteristic : characteristics) {
+                intmAvailableCharacteristics.put(characteristic.getUuid(), characteristic);
+                Log.d(MiBandSupport.TAG, "    characteristic: " + BleNamesResolver.resolveCharacteristicName(characteristic.getUuid().toString()) + ": " + characteristic.getUuid());
+            }
+            newCharacteristics.putAll(intmAvailableCharacteristics);
 
-                synchronized (characteristicsMonitor) {
-                    mAvailableCharacteristics = newCharacteristics;
-                }
-           // } else {
-           //     Log.d(MiBandSupport.TAG, "discovered unsupported service: " + BleNamesResolver.resolveServiceName(service.getUuid().toString()) + ": " + service.getUuid());
-           // }
+            synchronized (characteristicsMonitor) {
+                mAvailableCharacteristics = newCharacteristics;
+            }
         }
     }
 
-    protected TransactionBuilder initializeDevice(TransactionBuilder builder) {
-        enableNotifications(builder, true);
+    private TransactionBuilder initializeDevice(TransactionBuilder builder) {
+        enableNotifications(builder);
 
         builder.add(new SetDeviceStateAction(getDevice(), MiBandDevice.State.AUTHENTICATING, getContext()));
         // write key to device
@@ -286,87 +219,18 @@ public class MiBandSupport extends BluetoothGattCallback {
     }
 
     private byte[] getSecretKey() {
-        byte[] authKeyBytes = new byte[]{0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45};
-
-        return authKeyBytes;
+        return new byte[]{0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45};
     }
 
-    private MiBandSupport enableNotifications(TransactionBuilder builder, boolean enable) {
-        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_NOTIFICATION), enable);
-        builder.notify(getCharacteristic(GattService.UUID_SERVICE_CURRENT_TIME), enable);
+    private void enableNotifications(TransactionBuilder builder) {
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_NOTIFICATION), true);
+        builder.notify(getCharacteristic(MiBandService.UUID_SERVICE_CURRENT_TIME), true);
         // Notify CHARACTERISTIC9 to receive random auth code
-        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUTH), enable);
-        return this;
+        builder.notify(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUTH), true);
     }
 
     private void setInitialized(TransactionBuilder builder) {
         builder.add(new SetDeviceStateAction(getDevice(), MiBandDevice.State.INITIALIZED, getContext()));
-    }
-
-    public MiBandSupport setHighLatency(TransactionBuilder builder) {
-        builder.write(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_LE_PARAMS), getHighLatency());
-        return this;
-    }
-
-    private byte[] getHighLatency() {
-        int minConnectionInterval = 460;
-        int maxConnectionInterval = 500;
-        int latency = 0;
-        int timeout = 500;
-        int advertisementInterval = 0;
-
-        return getLatency(minConnectionInterval, maxConnectionInterval, latency, timeout, advertisementInterval);
-    }
-
-    private MiBandSupport pair(TransactionBuilder transaction) {
-        Log.d(MiBandSupport.TAG, "Attempting to pair MI device...");
-        BluetoothGattCharacteristic characteristic = getCharacteristic(MiBandService.UUID_CHARACTERISTIC_PAIR);
-        if (characteristic != null) {
-            transaction.write(characteristic, new byte[]{2});
-        } else {
-            Log.d(MiBandSupport.TAG, "Unable to pair MI device -- characteristic not available");
-        }
-
-        return this;
-    }
-
-
-    private MiBandSupport readDate(TransactionBuilder builder) {
-        builder.read(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_DATE_TIME));
-        return this;
-    }
-
-    public MiBandSupport setLowLatency(TransactionBuilder builder) {
-        builder.write(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_LE_PARAMS), getLowLatency());
-        return this;
-    }
-
-    private byte[] getLowLatency() {
-        int minConnectionInterval = 39;
-        int maxConnectionInterval = 49;
-        int latency = 0;
-        int timeout = 500;
-        int advertisementInterval = 0;
-
-        return getLatency(minConnectionInterval, maxConnectionInterval, latency, timeout, advertisementInterval);
-    }
-
-    private byte[] getLatency(int minConnectionInterval, int maxConnectionInterval, int latency, int timeout, int advertisementInterval) {
-        byte result[] = new byte[12];
-        result[0] = (byte) (minConnectionInterval & 0xff);
-        result[1] = (byte) (0xff & minConnectionInterval >> 8);
-        result[2] = (byte) (maxConnectionInterval & 0xff);
-        result[3] = (byte) (0xff & maxConnectionInterval >> 8);
-        result[4] = (byte) (latency & 0xff);
-        result[5] = (byte) (0xff & latency >> 8);
-        result[6] = (byte) (timeout & 0xff);
-        result[7] = (byte) (0xff & timeout >> 8);
-        result[8] = 0;
-        result[9] = 0;
-        result[10] = (byte) (advertisementInterval & 0xff);
-        result[11] = (byte) (0xff & advertisementInterval >> 8);
-
-        return result;
     }
 
     public BluetoothGattCharacteristic getCharacteristic(UUID uuid) {
@@ -374,8 +238,7 @@ public class MiBandSupport extends BluetoothGattCallback {
             if (mAvailableCharacteristics == null) {
                 return null;
             }
-            BluetoothGattCharacteristic retCharacteristic = mAvailableCharacteristics.get(uuid);
-            return retCharacteristic;
+            return mAvailableCharacteristics.get(uuid);
         }
     }
 
@@ -383,12 +246,8 @@ public class MiBandSupport extends BluetoothGattCallback {
         return mQueue;
     }
 
-    public BluetoothAdapter getBluetoothAdapter() {
+    private BluetoothAdapter getBluetoothAdapter() {
         return mBtAdapter;
-    }
-
-    protected void addSupportedService(UUID aSupportedService) {
-        mSupportedServices.add(aSupportedService);
     }
 
     public MiBandDevice getDevice(){

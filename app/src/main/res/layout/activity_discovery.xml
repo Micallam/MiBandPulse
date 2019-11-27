@@ -17,7 +17,7 @@
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Start discovery"
+            android:text="@string/start_scanning"
             android:id="@+id/discovery_start"
             android:layout_gravity="center_horizontal" />
 
@@ -41,7 +41,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceSmall"
-            android:text="Note:"
+            android:text="@string/note"
             android:id="@+id/discovery_note"
             android:textStyle="bold"
             android:textColor="#ff808080"
@@ -51,7 +51,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceSmall"
-            android:text="Make your device discoverable. Currently connected devices will likely not be discovered. Activate location (e.g. GPS) on Android 6+."
+            android:text="@string/discovery_note"
             android:id="@+id/discovery_hint"
             android:textColor="#ff808080"
             android:gravity="bottom"

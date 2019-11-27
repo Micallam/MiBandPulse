@@ -9,7 +9,7 @@
     tools:context="com.example.miband.Activities.PairingActivity">
 
     <TextView
-        android:text="Pairing with %s..."
+        android:text="@string/pairing_with"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/miband_pair_message" />
@@ -25,7 +25,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="When your Mi Band vibrates and blinks, tap it a few times in a row."
+        android:text="@string/pairing_note"
         android:id="@+id/miband_pair_hint"
         android:layout_centerVertical="true"
         android:layout_alignParentStart="true" />

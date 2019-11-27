@@ -113,4 +113,19 @@ public class MiBandDevice implements Parcelable {
     public State getState(){
         return mState;
     }
+
+
+
+    @Override
+    public boolean equals(Object object)
+    {
+        boolean equals = false;
+
+        if (object instanceof MiBandDevice)
+        {
+            equals = this.mAddress.equals(((MiBandDevice) object).mAddress);
+        }
+
+        return equals;
+    }
 }

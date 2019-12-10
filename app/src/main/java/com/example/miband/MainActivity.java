@@ -32,12 +32,8 @@ public class MainActivity extends AppCompatActivity {
 
     BluetoothAdapter bluetoothAdapter;
 
-    Button connectBtn;
     Button onOffBtn;
     Button searchBtn;
-    Button pairBtn;
-    Button syncBtn;
-    Button batteryInfoBtn;
 
     public MainActivity() {
         context = this;
@@ -49,12 +45,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-        connectBtn = findViewById(R.id.connectBtn);
         onOffBtn = findViewById(R.id.onOffBtn);
         searchBtn = findViewById(R.id.searchBtn);
-        pairBtn = findViewById(R.id.pairBtn);
-        syncBtn = findViewById(R.id.startSyncBtn);
-        batteryInfoBtn = findViewById(R.id.batteryInfoBtn);
 
         onOffBtn.setOnClickListener(new View.OnClickListener() {
             @Override

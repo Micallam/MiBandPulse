@@ -62,7 +62,7 @@ public class DeviceControlActivity extends AppCompatActivity {
             @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View v) {
-                AndroidUtils.toast(DeviceControlActivity.this, "Fetching started...", Toast.LENGTH_SHORT);
+                AndroidUtils.toast(DeviceControlActivity.this, "Odczyt pulsu rozpoczęty", Toast.LENGTH_SHORT);
 
                 heartrateGattCallback = new HeartRateGattCallback(MainActivity.getMiBandSupport(), DeviceControlActivity.this);
                 service = Executors.newSingleThreadScheduledExecutor();
@@ -88,7 +88,7 @@ public class DeviceControlActivity extends AppCompatActivity {
             @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View v) {
-                AndroidUtils.toast(DeviceControlActivity.this, "Offfff....", Toast.LENGTH_SHORT);
+                AndroidUtils.toast(DeviceControlActivity.this, "Wyłączono czytnik", Toast.LENGTH_SHORT);
 
                 service.shutdownNow();
                 heartrateGattCallback.enableRealtimeHeartRateMeasurement(false);
@@ -113,7 +113,6 @@ public class DeviceControlActivity extends AppCompatActivity {
     @Override
     public void onDestroy() {
         super.onDestroy();
-       // pusher.disconnect();
     }
 
     private void setupChart() {
@@ -128,18 +127,19 @@ public class DeviceControlActivity extends AppCompatActivity {
         mChart.setDrawGridBackground(false);
         // set an alternative background color
         //mChart.setBackgroundColor(Color.DKGRAY);
-        mChart.setBackgroundColor(Color.WHITE);
+        mChart.setBackgroundColor(getResources().getColor(R.color.colorBackground));
     }
 
     private void setupAxes() {
         XAxis xl = mChart.getXAxis();
-        xl.setTextColor(Color.RED);
+        xl.setTextColor(Color.WHITE);
         xl.setDrawGridLines(false);
         xl.setAvoidFirstLastClipping(true);
+        xl.setPosition(XAxis.XAxisPosition.BOTTOM);
         xl.setEnabled(true);
 
         YAxis leftAxis = mChart.getAxisLeft();
-        leftAxis.setTextColor(Color.RED);
+        leftAxis.setTextColor(Color.WHITE);
         leftAxis.setAxisMaximum(TOTAL_MEMORY);
         leftAxis.setAxisMinimum(0f);
         leftAxis.setDrawGridLines(true);
@@ -152,8 +152,8 @@ public class DeviceControlActivity extends AppCompatActivity {
         ll.setLineWidth(2f);
         ll.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
         ll.setTextSize(10f);
-        ll.setTextColor(Color.BLACK);
-        ll.setLineColor(Color.RED);
+        ll.setTextColor(Color.WHITE);
+        ll.setLineColor(Color.BLACK);
         // reset all limit lines to avoid overlapping lines
         leftAxis.removeAllLimitLines();
         leftAxis.addLimitLine(ll);
@@ -163,7 +163,7 @@ public class DeviceControlActivity extends AppCompatActivity {
 
     private void setupData() {
         LineData data = new LineData();
-        data.setValueTextColor(Color.BLACK);
+        data.setValueTextColor(Color.WHITE);
 
         // add empty data
         mChart.setData(data);
@@ -171,11 +171,12 @@ public class DeviceControlActivity extends AppCompatActivity {
 
     private void setLegend() {
         // get the legend (only possible after setting data)
-        Legend l = mChart.getLegend();
+      /*  Legend l = mChart.getLegend();
 
         // modify the legend ...
         l.setForm(Legend.LegendForm.CIRCLE);
-        l.setTextColor(Color.BLACK);
+        l.setTextColor(Color.WHITE);
+        */
     }
 
     private LineDataSet createSet() {
@@ -186,7 +187,8 @@ public class DeviceControlActivity extends AppCompatActivity {
         //set.setFillColor(Color.RED);
         set.setLineWidth(2f);
         set.setCircleRadius(4f);
-        set.setValueTextColor(Color.BLACK);
+        set.setValueTextColor(Color.WHITE);
+
         set.setValueTextSize(10f);
         // To show values of each point
         set.setDrawValues(true);
@@ -212,7 +214,7 @@ public class DeviceControlActivity extends AppCompatActivity {
             mChart.notifyDataSetChanged();
 
             // limit the number of visible entries
-            mChart.setVisibleXRangeMaximum(40);
+            mChart.setVisibleXRangeMaximum(15);
 
             // move to the latest entry
             mChart.moveViewToX(data.getEntryCount());

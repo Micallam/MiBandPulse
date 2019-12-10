@@ -120,7 +120,10 @@ public class HeartRateGattCallback extends BluetoothGattCallback {
             Log.d(HeartRateGattCallback.TAG, "heart rate: " + hrValue);
 
             DeviceControlActivity activity = (DeviceControlActivity) mContext;
-            activity.addEntry(new HeartRate(hrValue, Calendar.getInstance().getTime()));
+
+            if (hrValue > 0) {
+                activity.addEntry(new HeartRate(hrValue, Calendar.getInstance().getTime()));
+            }
         }
     }
 }

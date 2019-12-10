@@ -195,20 +195,20 @@ public class PairingActivity extends AppCompatActivity {
 
         int bondState = device.getBondState();
         if (bondState == BluetoothDevice.BOND_BONDED) {
-            AndroidUtils.toast(this, "Already bonded with " + device.getName() + " (" + device.getAddress() + "), connecting…", Toast.LENGTH_SHORT);
+            AndroidUtils.toast(this, "Już powiązano z " + device.getName() + " (" + device.getAddress() + "), łączenie…", Toast.LENGTH_SHORT);
             performApplicationLevelPair();
             return;
         }
 
         bondingAddress = device.getAddress();
         if (bondState == BluetoothDevice.BOND_BONDING) {
-            AndroidUtils.toast(this, "Bonding in progress: " + device.getName() + " (" + bondingAddress + ")", Toast.LENGTH_LONG);
+            AndroidUtils.toast(this, "W trakcie wiązania z " + device.getName() + " (" + bondingAddress + ")", Toast.LENGTH_LONG);
             return;
         }
 
-        AndroidUtils.toast(this, "Creating bond with: " + device.getName() + " (" + bondingAddress + ")", Toast.LENGTH_LONG);
+        AndroidUtils.toast(this, "Tworzą wiązanie z: " + device.getName() + " (" + bondingAddress + ")", Toast.LENGTH_LONG);
         if (!device.createBond()) {
-            AndroidUtils.toast(this, "Unable to bond with: " + device.getName() + " (" + bondingAddress + ")", Toast.LENGTH_LONG);
+            AndroidUtils.toast(this, "Nie można powiązać z: " + device.getName() + " (" + bondingAddress + ")", Toast.LENGTH_LONG);
         }
     }
 

@@ -9,11 +9,14 @@ import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 
+import com.example.miband.Activities.DeviceControlActivity;
+import com.example.miband.DataStructures.HeartRate;
 import com.example.miband.Device.MiBandDevice;
 import com.example.miband.Device.MiBandService;
 import com.example.miband.Device.MiBandSupport;
 
 import java.io.IOException;
+import java.util.Calendar;
 import java.util.UUID;
 
 @RequiresApi(api = Build.VERSION_CODES.M)
@@ -25,16 +28,13 @@ public class HeartRateGattCallback extends BluetoothGattCallback {
     private static final byte[] stopHeartMeasurementContinuous = new byte[]{0x15, MiBandService.COMMAND_SET__HR_CONTINUOUS, 0};
 
     private MiBandSupport mSupport;
+    private Context mContext;
 
     private boolean heartRateNotifyEnabled;
 
-    public HeartRateGattCallback(MiBandSupport support){
+    public HeartRateGattCallback(MiBandSupport support, Context context){
         mSupport = support;
-    }
-
-
-    Context getContext(){
-        return mSupport.getContext();
+        mContext = context;
     }
 
     MiBandDevice getDevice(){
@@ -118,6 +118,9 @@ public class HeartRateGattCallback extends BluetoothGattCallback {
             int hrValue = (value[1] & 0xff);
 
             Log.d(HeartRateGattCallback.TAG, "heart rate: " + hrValue);
+
+            DeviceControlActivity activity = (DeviceControlActivity) mContext;
+            activity.addEntry(new HeartRate(hrValue, Calendar.getInstance().getTime()));
         }
     }
 }

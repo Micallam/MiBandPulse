@@ -6,13 +6,19 @@
     android:paddingRight="16dp"
     android:paddingTop="16dp"
     android:paddingBottom="16dp"
+    android:background="@color/colorBackground"
     tools:context="com.example.miband.Activities.PairingActivity">
 
     <TextView
         android:text="@string/pairing_with"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/miband_pair_message" />
+        android:id="@+id/miband_pair_message"
+        android:layout_marginTop="20dp"
+        android:layout_marginLeft="10dp"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
     <ProgressBar
         android:layout_width="wrap_content"
@@ -23,11 +29,16 @@
         android:layout_centerHorizontal="true" />
 
     <TextView
+        android:id="@+id/miband_pair_hint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="18dp"
+        android:textAlignment="center"
         android:text="@string/pairing_note"
-        android:id="@+id/miband_pair_hint"
-        android:layout_centerVertical="true"
-        android:layout_alignParentStart="true" />
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
 </RelativeLayout>

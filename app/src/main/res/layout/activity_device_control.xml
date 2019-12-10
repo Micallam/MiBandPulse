@@ -5,6 +5,7 @@
     android:id="@+id/activity_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorBackground"
     android:orientation="vertical"
     tools:context="com.example.miband.Activities.DeviceControlActivity">
 
@@ -14,15 +15,29 @@
         android:orientation="horizontal">
 
         <Button
-            android:text="On"
-            android:layout_width="wrap_content"
+            android:text="Rozpocznij"
+            android:layout_width="match_parent"
+            android:layout_weight="1"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="5dp"
             android:layout_height="wrap_content"
+            android:background="@drawable/rounded_button"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
             android:id="@+id/onBtn"/>
 
         <Button
-            android:text="off"
-            android:layout_width="wrap_content"
+            android:text="Zakończ"
+            android:layout_width="match_parent"
+            android:layout_weight="1"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="20dp"
             android:layout_height="wrap_content"
+            android:background="@drawable/rounded_button"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
             android:id="@+id/offBtn"/>
     </LinearLayout>
 

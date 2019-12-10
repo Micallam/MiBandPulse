@@ -73,7 +73,7 @@
         android:textColor="@android:color/white"
         android:text="@string/discovery_note"
         android:textSize="18sp"
-        android:textIsSelectable="true"
+        android:textAlignment="center"
         app:layout_constraintBottom_toBottomOf="parent"
 
         app:layout_constraintEnd_toEndOf="parent"

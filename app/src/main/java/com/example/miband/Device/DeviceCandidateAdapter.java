@@ -45,7 +45,7 @@ public class DeviceCandidateAdapter extends ArrayAdapter<MiBandDevice> {
         String name = formatDeviceCandidate(device);
         deviceNameLabel.setText(name);
         deviceAddressLabel.setText(device.getAddress() + " | " + device.getName());
-        deviceImageView.setImageResource(R.drawable.ic_miband_background);
+        deviceImageView.setImageResource(R.drawable.ic_device_found);
 
         return view;
     }

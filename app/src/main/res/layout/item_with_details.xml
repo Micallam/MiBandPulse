@@ -28,6 +28,7 @@
             android:scrollHorizontally="false"
             style="@style/Base.TextAppearance.AppCompat.SearchResult.Title"
             android:text="@string/item_name"
+            android:textColor="@android:color/white"
             android:maxLines="1" />
 
         <TextView
@@ -35,6 +36,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             style="@style/Base.TextAppearance.AppCompat.SearchResult"
+            android:textColor="@android:color/white"/>
             android:text="@string/item_description" />
     </LinearLayout>
 

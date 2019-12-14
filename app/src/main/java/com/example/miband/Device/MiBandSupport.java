@@ -211,8 +211,11 @@ public class MiBandSupport extends BluetoothGattCallback {
         enableNotifications(builder);
 
         builder.add(new SetDeviceStateAction(getDevice(), MiBandDevice.State.AUTHENTICATING, getContext()));
-        // write key to device
+
+        // authentication key to write to device
         byte[] sendKey = org.apache.commons.lang3.ArrayUtils.addAll(new byte[]{MiBandService.AUTH_SEND_KEY, MiBandService.AUTH_BYTE}, getSecretKey());
+
+        //UUID_CHARACTERISTIC_AUTH: 00000009-0000-3512-2118-0009af100700
         builder.write(getCharacteristic(MiBandService.UUID_CHARACTERISTIC_AUTH), sendKey);
 
         return builder;

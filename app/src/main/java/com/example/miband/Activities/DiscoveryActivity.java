@@ -91,6 +91,19 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         }
     };
 
+    private void handleDeviceFound(BluetoothDevice device) {
+        MiBandDevice candidate = new MiBandDevice(device, device.getAddress());
+
+        int index = deviceCandidates.indexOf(candidate);
+        if (index >= 0) {
+            // replace existing device candidate
+            deviceCandidates.set(index, candidate);
+        } else {
+            deviceCandidates.add(candidate);
+        }
+        candidateListAdapter.notifyDataSetChanged();
+    }
+
     public void logMessageContent(byte[] value) {
         if (value != null) {
             Log.d(DiscoveryActivity.TAG, "DATA: " + AndroidUtils.hexdump(value, 0, value.length));
@@ -194,20 +207,6 @@ public class DiscoveryActivity extends AppCompatActivity implements AdapterView.
         super.onDestroy();
     }
 
-    private void handleDeviceFound(BluetoothDevice device) {
-        Log.d(DiscoveryActivity.TAG, "found device: " + device.getName() + ", " + device.getAddress());
-
-        MiBandDevice candidate = new MiBandDevice(device, device.getAddress());
-
-        Log.d(DiscoveryActivity.TAG,"Recognized  device: " + candidate.getName());
-        int index = deviceCandidates.indexOf(candidate);
-        if (index >= 0) {
-            deviceCandidates.set(index, candidate); // replace
-        } else {
-            deviceCandidates.add(candidate);
-        }
-        candidateListAdapter.notifyDataSetChanged();
-    }
 
     /**
      * Pre: bluetooth is available, enabled and scanning is off.

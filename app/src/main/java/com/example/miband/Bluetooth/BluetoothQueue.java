@@ -99,7 +99,7 @@ public class BluetoothQueue {
                                 }
 
                                 if (action.run(mBluetoothGatt)) {
-                                    // check again, maybe due to some condition, action did not need to write, so we can't wait
+                                    // check again, maybe due to some condition, action did not need to write
                                     boolean waitForResult = action.expectsResult();
                                     if (waitForResult) {
                                         mWaitForActionResultLatch.await();

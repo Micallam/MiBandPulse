@@ -26,8 +26,11 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.IValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.github.mikephil.charting.utils.ViewPortHandler;
 
+import java.text.DecimalFormat;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -44,8 +47,8 @@ public class DeviceControlActivity extends AppCompatActivity {
 
     private LineChart mChart;
 
-    private static final float TOTAL_MEMORY = 150.0f;
-    private static final float LIMIT_MAX_MEMORY = 140.0f;
+    private static final float TOTAL_MEMORY = 190.0f;
+    private static final float LIMIT_MAX_MEMORY = 180.0f;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +82,7 @@ public class DeviceControlActivity extends AppCompatActivity {
                             });
                         }
                     }
-                }, 0, 2000, TimeUnit.MILLISECONDS);
+                }, 0, 4000, TimeUnit.MILLISECONDS);
             }
         });
 
@@ -148,10 +151,10 @@ public class DeviceControlActivity extends AppCompatActivity {
         rightAxis.setEnabled(false);
 
         // Add a limit line
-        LimitLine ll = new LimitLine(LIMIT_MAX_MEMORY, "Upper Limit");
-        ll.setLineWidth(2f);
+        LimitLine ll = new LimitLine(LIMIT_MAX_MEMORY, "Limit");
+        ll.setLineWidth(3f);
         ll.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
-        ll.setTextSize(10f);
+        ll.setTextSize(12f);
         ll.setTextColor(Color.WHITE);
         ll.setLineColor(Color.BLACK);
         // reset all limit lines to avoid overlapping lines
@@ -170,26 +173,22 @@ public class DeviceControlActivity extends AppCompatActivity {
     }
 
     private void setLegend() {
-        // get the legend (only possible after setting data)
-      /*  Legend l = mChart.getLegend();
-
-        // modify the legend ...
-        l.setForm(Legend.LegendForm.CIRCLE);
-        l.setTextColor(Color.WHITE);
-        */
     }
 
     private LineDataSet createSet() {
-        LineDataSet set = new LineDataSet(null, "Memory Data");
+        LineDataSet set = new LineDataSet(null, "Puls");
         set.setAxisDependency(YAxis.AxisDependency.LEFT);
-        //set.setColors(ColorTemplate.VORDIPLOM_COLORS[1]);
         set.setCircleColor(Color.RED);
-        //set.setFillColor(Color.RED);
         set.setLineWidth(2f);
         set.setCircleRadius(4f);
         set.setValueTextColor(Color.WHITE);
-
-        set.setValueTextSize(10f);
+        set.setValueTextSize(15f);
+        set.setValueFormatter(new IValueFormatter() {
+            @Override
+            public String getFormattedValue(float value, Entry entry, int dataSetIndex, ViewPortHandler viewPortHandler) {
+                return new DecimalFormat("#").format(value);
+            }
+        });
         // To show values of each point
         set.setDrawValues(true);
 
@@ -214,7 +213,7 @@ public class DeviceControlActivity extends AppCompatActivity {
             mChart.notifyDataSetChanged();
 
             // limit the number of visible entries
-            mChart.setVisibleXRangeMaximum(15);
+            mChart.setVisibleXRangeMaximum(10);
 
             // move to the latest entry
             mChart.moveViewToX(data.getEntryCount());

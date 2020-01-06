@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MiBandPulse</string>
+    <string name="app_name">MiBand Pulse</string>
 
     <string name="pairing_with">Trwa parowanie z:\n%1s\n%2s...</string>
     <string name="start_scanning">Rozpocznij skanowanie</string>

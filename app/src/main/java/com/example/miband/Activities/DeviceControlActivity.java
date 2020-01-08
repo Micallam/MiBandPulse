@@ -1,15 +1,20 @@
 package com.example.miband.Activities;
 
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentActivity;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.example.miband.Bluetooth.HeartRateGattCallback;
@@ -30,6 +35,7 @@ import com.github.mikephil.charting.formatter.IValueFormatter;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.github.mikephil.charting.utils.ViewPortHandler;
 
+import java.net.URL;
 import java.text.DecimalFormat;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -50,6 +56,9 @@ public class DeviceControlActivity extends AppCompatActivity {
     private static final float TOTAL_MEMORY = 190.0f;
     private static final float LIMIT_MAX_MEMORY = 180.0f;
 
+    private String serverUrl;
+    private String simulationId;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,24 +74,41 @@ public class DeviceControlActivity extends AppCompatActivity {
             @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View v) {
-                AndroidUtils.toast(DeviceControlActivity.this, "Odczyt pulsu rozpoczęty", Toast.LENGTH_SHORT);
+                AlertDialog.Builder builder = new AlertDialog.Builder(DeviceControlActivity.this);
 
-                heartrateGattCallback = new HeartRateGattCallback(MainActivity.getMiBandSupport(), DeviceControlActivity.this);
-                service = Executors.newSingleThreadScheduledExecutor();
-                service.scheduleAtFixedRate(new Runnable() {
+                LinearLayout layout = new LinearLayout(DeviceControlActivity.this);
+                layout.setOrientation(LinearLayout.VERTICAL);
+
+                final EditText simulationIdField = new EditText(DeviceControlActivity.this);
+                simulationIdField.setHint("Identyfikator symulacji");
+                simulationIdField.setInputType(InputType.TYPE_CLASS_NUMBER);
+                layout.addView(simulationIdField);
+
+                final EditText serverIpField = new EditText(DeviceControlActivity.this);
+                serverIpField.setHint("IP Serwera");
+                layout.addView(serverIpField);
+
+                builder.setView(layout);
+
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
-                    public void run() {
-                        FragmentActivity activity = DeviceControlActivity.this;
-                        if (!activity.isFinishing() && !activity.isDestroyed()) {
-                            activity.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    heartrateGattCallback.enableRealtimeHeartRateMeasurement(true);
-                                }
-                            });
-                        }
+                    public void onClick(DialogInterface dialog, int which) {
+                        setServerURL("http://" + serverIpField.getText().toString() + "/mibandpulse/sendPulse.php");
+                        setSimulationId(simulationIdField.getText().toString());
+
+                        startHeartRateMeasurement();
                     }
-                }, 0, 4000, TimeUnit.MILLISECONDS);
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+
+                builder.show();
+
+
             }
         });
 
@@ -111,6 +137,44 @@ public class DeviceControlActivity extends AppCompatActivity {
         setupAxes();
         setupData();
         setLegend();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private void startHeartRateMeasurement(){
+        AndroidUtils.toast(DeviceControlActivity.this, "Odczyt pulsu rozpoczęty", Toast.LENGTH_SHORT);
+
+        heartrateGattCallback = new HeartRateGattCallback(MainActivity.getMiBandSupport(), DeviceControlActivity.this);
+        service = Executors.newSingleThreadScheduledExecutor();
+        service.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                FragmentActivity activity = DeviceControlActivity.this;
+                if (!activity.isFinishing() && !activity.isDestroyed()) {
+                    activity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            heartrateGattCallback.enableRealtimeHeartRateMeasurement(true);
+                        }
+                    });
+                }
+            }
+        }, 0, 4000, TimeUnit.MILLISECONDS);
+    }
+
+    public void setServerURL(String url){
+        serverUrl = url;
+    }
+
+    public String getServerUrl(){
+        return serverUrl;
+    }
+
+    public void setSimulationId(String id){
+        simulationId = id;
+    }
+
+    public String getSimulationId(){
+        return simulationId;
     }
 
     @Override

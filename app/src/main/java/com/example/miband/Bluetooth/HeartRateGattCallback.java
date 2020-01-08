@@ -14,8 +14,10 @@ import com.example.miband.DataStructures.HeartRate;
 import com.example.miband.Device.MiBandDevice;
 import com.example.miband.Device.MiBandService;
 import com.example.miband.Device.MiBandSupport;
+import com.example.miband.Tasks.SendPulseTask;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.UUID;
 
@@ -66,18 +68,6 @@ public class HeartRateGattCallback extends BluetoothGattCallback {
         }
     }
 
-    private void enableRealtimeSamplesTimer() {
-        //TODO handle HR timer
-        /*if (enable) {
-            getRealtimeSamplesSupport().start();
-        } else {
-            if (realtimeSamplesSupport != null) {
-                realtimeSamplesSupport.stop();
-            }
-        }*/
-    }
-
-
     public void enableRealtimeHeartRateMeasurement(boolean enable) {
         BluetoothGattCharacteristic characteristicHRControlPoint = getCharacteristic(MiBandService.UUID_CHARACTERISTIC_HEART_RATE_CONTROL_POINT);
         if (characteristicHRControlPoint == null) {
@@ -93,7 +83,6 @@ public class HeartRateGattCallback extends BluetoothGattCallback {
                 builder.write(characteristicHRControlPoint, stopHeartMeasurementContinuous);
             }
             builder.queue(getQueue());
-            enableRealtimeSamplesTimer();
         } catch (IOException ex) {
             Log.d(HeartRateGattCallback.TAG, "Unable to enable realtime heart rate measurement", ex);
         }
@@ -122,7 +111,18 @@ public class HeartRateGattCallback extends BluetoothGattCallback {
             DeviceControlActivity activity = (DeviceControlActivity) mContext;
 
             if (hrValue > 0) {
-                activity.addEntry(new HeartRate(hrValue, Calendar.getInstance().getTime()));
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                HeartRate heartRate = new HeartRate(hrValue, Calendar.getInstance().getTime());
+                activity.addEntry(heartRate);
+
+                Log.d(HeartRateGattCallback.TAG, dateFormat.format(heartRate.getTime()));
+
+                new SendPulseTask()
+                        .execute(
+                                ((DeviceControlActivity) mContext).getServerUrl(),
+                                ((DeviceControlActivity) mContext).getSimulationId(),
+                                dateFormat.format(heartRate.getTime()),
+                                String.valueOf(heartRate.getValue()));
             }
         }
     }

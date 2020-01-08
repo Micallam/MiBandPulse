@@ -15,7 +15,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.view.Window;
 import android.widget.Button;
 
 import com.example.miband.Activities.DiscoveryActivity;
@@ -64,8 +63,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
             if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
                 final AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -82,6 +79,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
